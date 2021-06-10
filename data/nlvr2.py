@@ -59,30 +59,40 @@ class Nlvr2PairedDataset(DetectFeatTxtTokDataset):
 
 
 def nlvr2_paired_collate(inputs):
+    # input_ids: [txt_0, txt_0, txt_1, txt_1, ...]
+    # img_feats: [img_0_0, img_0_1, img_1_0, img_1_1, ...]  NOTE: there are two imgs for one example
+    # img_pos_feats: [img_pos_0_0, img_pos_0_1, img_pos_1_0, img_pos_1_1, ...]
+    # attn_masks: [[1]*(img_0_len+txt_0_len), [1]*(img_1_len+txt_1_len), ...]
+    # img_type_ids: [[1]*(img_0_len), [2]*(img_0_len), [1]*(img_1_len), [2]*(img_1_len), ...]
     (input_ids, img_feats, img_pos_feats, attn_masks,
      img_type_ids) = map(list, unzip(concat(outs for outs, _ in inputs)))
 
     txt_lens = [i.size(0) for i in input_ids]
-    input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0)
+    input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0) # 2*b x max_txt_len
     position_ids = torch.arange(0, input_ids.size(1), dtype=torch.long
-                                ).unsqueeze(0)
+                                ).unsqueeze(0) # 1 x max_txt_len
 
     # image batches
     num_bbs = [f.size(0) for f in img_feats]
-    img_feat = pad_tensors(img_feats, num_bbs)
-    img_pos_feat = pad_tensors(img_pos_feats, num_bbs)
+    img_feat = pad_tensors(img_feats, num_bbs) # 2*b x max_img_len x d(2048)
+    img_pos_feat = pad_tensors(img_pos_feats, num_bbs) # 2*b x max_img_len x (7)
     if img_type_ids[0] is None:
         img_type_ids = None
     else:
         img_type_ids = pad_sequence(img_type_ids,
-                                    batch_first=True, padding_value=0)
+                                    batch_first=True, padding_value=0) # 2*b x max_img_len
 
-    attn_masks = pad_sequence(attn_masks, batch_first=True, padding_value=0)
-    targets = torch.Tensor([t for _, t in inputs]).long()
+    attn_masks = pad_sequence(attn_masks, batch_first=True, padding_value=0) # 2*b x max_(img+txt)_len
+    targets = torch.Tensor([t for _, t in inputs]).long() # b -> true/false for each example
 
     bs, max_tl = input_ids.size()
-    out_size = attn_masks.size(1)
-    gather_index = get_gather_index(txt_lens, num_bbs, bs, max_tl, out_size)
+    out_size = attn_masks.size(1) # max_(img+txt)_len
+    
+    # NOTE: used to gather img and txt representations from padded sequences
+    # For example: 
+    #   given img_pad_mask: [1,1,1,0,0], txt_pad_mask: [1,1,0,0]
+    #   gather_index = [0,1,2,5,6]
+    gather_index = get_gather_index(txt_lens, num_bbs, bs, max_tl, out_size) # 2*b x max_(img+txt)_len 
 
     batch = {'input_ids': input_ids,
              'position_ids': position_ids,
