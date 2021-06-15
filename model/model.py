@@ -15,8 +15,7 @@ import torch
 from torch import nn
 from apex.normalization.fused_layer_norm import FusedLayerNorm
 
-from .layer import BertLayer, BertPooler
-
+from .layer import BertLayer, BertPooler, BertOnlyMLMHead
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +34,8 @@ class UniterConfig(object):
                  attention_probs_dropout_prob=0.1,
                  max_position_embeddings=512,
                  type_vocab_size=2,
-                 initializer_range=0.02):
+                 initializer_range=0.02,
+                 prompt_len=20):
         """Constructs UniterConfig.
         Args:
             vocab_size_or_config_json_file: Vocabulary size of `inputs_ids` in
@@ -80,6 +80,7 @@ class UniterConfig(object):
             self.max_position_embeddings = max_position_embeddings
             self.type_vocab_size = type_vocab_size
             self.initializer_range = initializer_range
+            self.prompt_len = prompt_len
         else:
             raise ValueError("First argument must be either a vocabulary size "
                              "(int) or the path to a pretrained model config "
@@ -338,8 +339,16 @@ class UniterModel(UniterPreTrainedModel):
                 attention_mask, gather_index=None, img_masks=None,
                 output_all_encoded_layers=True,
                 txt_type_ids=None, img_type_ids=None):
+        # import ipdb; ipdb.set_trace()
+        # input_ids: b x max_tl
+        # position_ids: [[0, 1, ..., max_tl-1]]
+        # img_feat: b x max_il x 2048
+        # img_pos_feat: b x max_il x 7
+        # attention_mask: b x max_l with all ones
+        # gather_index: b x max_l, img_idxs + txt_idxs
+        
         # compute self-attention mask
-        extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
+        extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2) # b x 1 x 1 x max_l
         extended_attention_mask = extended_attention_mask.to(
             dtype=next(self.parameters()).dtype)  # fp16 compatibility
         extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
@@ -357,7 +366,7 @@ class UniterModel(UniterPreTrainedModel):
             embedding_output = self._compute_img_txt_embeddings(
                 input_ids, position_ids,
                 img_feat, img_pos_feat,
-                gather_index, img_masks, txt_type_ids, img_type_ids)
+                gather_index, img_masks, txt_type_ids, img_type_ids) # b x max_l x d
 
         encoded_layers = self.encoder(
             embedding_output, extended_attention_mask,
@@ -365,3 +374,91 @@ class UniterModel(UniterPreTrainedModel):
         if not output_all_encoded_layers:
             encoded_layers = encoded_layers[-1]
         return encoded_layers
+
+
+class UniterSoftPromptModel(UniterPreTrainedModel):
+    """ Modification for Soft-Prompt
+    """
+    def __init__(self, config, img_dim):
+        super().__init__(config)
+        self.uniter = UniterModel(config, img_dim)
+        self.uniter.requires_grad_(False)
+        self.cls = BertOnlyMLMHead(
+            config, self.uniter.embeddings.word_embeddings.weight)
+        self.cls.requires_grad_(False)
+        
+        # add soft prompts
+        self.soft_prompt_embeddings = nn.Embedding(config.prompt_len,
+                                                   config.hidden_size)
+        self.soft_prompt_embeddings.requires_grad_(True)
+        
+        self.apply(self.init_weights)
+        
+    def forward(self, input_ids, position_ids,
+                img_feat, img_pos_feat,
+                attention_mask, gather_index=None, img_masks=None,
+                output_all_encoded_layers=True,
+                txt_type_ids=None, img_type_ids=None):
+        
+        prompt_mask = torch.ones(attention_mask.shape[0], self.config.prompt_len).to(attention_mask)
+        # attention_mask = torch.cat([attention_mask, prompt_mask], dim=-1)
+        attention_mask = torch.cat([prompt_mask, attention_mask], dim=-1)
+        
+        # compute self-attention mask
+        extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2) # b x 1 x 1 x max_l
+        extended_attention_mask = extended_attention_mask.to(
+            dtype=next(self.parameters()).dtype)  # fp16 compatibility
+        extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
+
+        # embedding layer
+        if input_ids is None:
+            # image only
+            embedding_output = self._compute_img_embeddings(
+                img_feat, img_pos_feat, img_masks, img_type_ids)
+        elif img_feat is None:
+            # text only
+            embedding_output = self._compute_txt_embeddings(
+                input_ids, position_ids, txt_type_ids)
+        else:
+            embedding_output = self._compute_img_txt_embeddings(
+                input_ids, position_ids,
+                img_feat, img_pos_feat,
+                gather_index, img_masks, txt_type_ids, img_type_ids) # b x max_l x d
+
+        encoded_layers = self.uniter.encoder(
+            embedding_output, extended_attention_mask,
+            output_all_encoded_layers=output_all_encoded_layers)
+        if not output_all_encoded_layers:
+            encoded_layers = encoded_layers[-1]
+        return encoded_layers
+
+    def _compute_img_txt_embeddings(self, input_ids, position_ids,
+                                    img_feat, img_pos_feat,
+                                    gather_index, img_masks=None,
+                                    txt_type_ids=None, img_type_ids=None,
+                                    prompt_type='suffix'):
+        txt_emb = self.uniter._compute_txt_embeddings(
+            input_ids, position_ids, txt_type_ids)
+        img_emb = self.uniter._compute_img_embeddings(
+            img_feat, img_pos_feat, img_masks, img_type_ids)
+        # align back to most compact input
+        gather_index = gather_index.unsqueeze(-1).expand(
+            -1, -1, self.config.hidden_size)
+        embedding_output = torch.gather(torch.cat([txt_emb, img_emb], dim=1),
+                                        dim=1, index=gather_index)
+        
+        prompt_pos_ids = torch.arange(self.config.prompt_len).to(position_ids).unsqueeze(0)
+        prompt_pos_emb = self.uniter.embeddings.position_embeddings(prompt_pos_ids)
+        
+        prompt_type_ids = torch.zeros_like(prompt_pos_ids)
+        prompt_type_emb = self.uniter.embeddings.token_type_embeddings(prompt_type_ids)
+        
+        prompt_emb = (self.soft_prompt_embeddings.weight.unsqueeze(0)
+                      + prompt_pos_emb
+                      + prompt_type_emb) # 1 x prompt_len x d
+
+        prompt_emb = prompt_emb.expand(embedding_output.shape[0], -1, -1)
+        
+        embedding_output = torch.cat([prompt_emb, embedding_output], dim=1)
+        
+        return embedding_output

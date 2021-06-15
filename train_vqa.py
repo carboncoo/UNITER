@@ -25,7 +25,7 @@ from data import (TokenBucketSampler, PrefetchLoader,
                   TxtTokLmdb, ImageLmdbGroup, ConcatDatasetWithLens,
                   VqaDataset, VqaEvalDataset,
                   vqa_collate, vqa_eval_collate)
-from model.vqa import UniterForVisualQuestionAnswering
+from model.vqa import UniterForVisualQuestionAnswering, UniterSoftPromptForVisualQuestionAnswering
 from optim import AdamW, get_lr_sched
 
 from utils.logger import LOGGER, TB_LOGGER, RunningMeter, add_log_to_file
@@ -139,7 +139,10 @@ def main(opts):
     toker = json.load(open(f'{all_dbs[0]}/meta.json'))['bert']
     assert all(toker == json.load(open(f'{db}/meta.json'))['bert']
                for db in all_dbs)
-    model = UniterForVisualQuestionAnswering.from_pretrained(
+    # model = UniterForVisualQuestionAnswering.from_pretrained(
+    #     opts.model_config, checkpoint,
+    #     img_dim=IMG_DIM, num_answer=len(ans2label))
+    model = UniterSoftPromptForVisualQuestionAnswering.from_pretrained(
         opts.model_config, checkpoint,
         img_dim=IMG_DIM, num_answer=len(ans2label))
     model.to(device)

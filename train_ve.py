@@ -25,7 +25,7 @@ from data import (TokenBucketSampler, PrefetchLoader,
                   DetectFeatLmdb, TxtTokLmdb,
                   VeDataset, VeEvalDataset,
                   ve_collate, ve_eval_collate)
-from model.ve import UniterForVisualEntailment
+from model.ve import UniterForVisualEntailment, UniterSoftPromptForVisualEntailment
 from optim import get_lr_sched
 from optim.misc import build_optimizer
 
@@ -92,8 +92,12 @@ def main(opts):
     bert_model = json.load(open(f'{opts.train_txt_db}/meta.json'))['bert']
     if 'bert' not in bert_model:
         bert_model = 'bert-large-cased'  # quick hack for glove exp
-    model = UniterForVisualEntailment.from_pretrained(
+        
+    # model = UniterForVisualEntailment.from_pretrained(
+    #     opts.model_config, state_dict=checkpoint, img_dim=IMG_DIM)
+    model = UniterSoftPromptForVisualEntailment.from_pretrained(
         opts.model_config, state_dict=checkpoint, img_dim=IMG_DIM)
+    
     model.to(device)
     # make sure every process has same model parameters in the beginning
     broadcast_tensors([p.data for p in model.parameters()], 0)

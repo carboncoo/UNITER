@@ -11,7 +11,7 @@ from torch.nn import functional as F
 from apex.normalization.fused_layer_norm import FusedLayerNorm as LayerNorm
 
 from .layer import GELU
-from .model import UniterPreTrainedModel, UniterModel
+from .model import UniterPreTrainedModel, UniterModel, UniterSoftPromptModel
 
 
 class UniterForVisualQuestionAnswering(UniterPreTrainedModel):
