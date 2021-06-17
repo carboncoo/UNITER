@@ -29,6 +29,9 @@ class UniterSoftPromptForVisualEntailment(UniterPreTrainedModel):
     @classmethod
     def from_pretrained(cls, config_file, state_dict, *inputs, **kwargs):
         config = UniterConfig.from_json_file(config_file)
+        config.prompt_len = kwargs.pop('prompt_len', config.prompt_len)
+        config.prompt_type = kwargs.pop('prompt_type', config.prompt_type)
+        config.label_mapping = kwargs.pop('label_mapping', config.label_mapping)
         model = cls(config, *inputs, **kwargs)
         model.uniter_softprompt = UniterSoftPromptModel.from_pretrained(config_file, state_dict, *inputs, **kwargs)
         return model

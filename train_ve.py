@@ -6,6 +6,7 @@ UNITER finetuning for SNLI-VE
 """
 import argparse
 import json
+import shutil
 import os
 from os.path import exists, join
 import pickle
@@ -95,7 +96,9 @@ def main(opts):
         
     model_cls = UniterSoftPromptForVisualEntailment if opts.prompt_type else UniterForVisualEntailment
     model = model_cls.from_pretrained(
-        opts.model_config, state_dict=checkpoint, img_dim=IMG_DIM)
+        opts.model_config, state_dict=checkpoint, img_dim=IMG_DIM,
+        prompt_len=opts.prompt_len, prompt_type=opts.prompt_type, label_mapping=opts.label_mapping
+    )
     
     model.to(device)
     # make sure every process has same model parameters in the beginning
@@ -394,6 +397,9 @@ if __name__ == "__main__":
     parser.add_argument('--config', help='JSON config files')
 
     args = parse_with_config(parser)
+    
+    if exists(args.output_dir):
+        shutil.rmtree(args.output_dir)
 
     # if exists(args.output_dir) and os.listdir(args.output_dir):
     #     raise ValueError("Output directory ({}) already exists and is not "

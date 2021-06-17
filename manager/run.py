@@ -61,7 +61,7 @@ def main(cfg):
         save_dir = run.info.artifact_uri.replace('file://', '')
         
         # real output_dir
-        exp_cfg.output_dir = exp_cfg.output_dir or mlflow_cfg.output_dir
+        exp_cfg.output_dir = exp_cfg.output_dir or os.path.join(mlflow_cfg.output_dir, 'exp_results')
         exp_cfg.output_dir = os.path.join(exp_cfg.output_dir, mlflow_cfg.task+'-'+run_id)
         
         # save configs
@@ -81,7 +81,7 @@ def main(cfg):
                 log_artifact(path, artifact_path="code")
         
         # save cmds
-        cmd_file = os.path.join(save_dir, 'train_cmd.txt')
+        cmd_file = os.path.join(save_dir, 'train_cmd.sh')
         with open(cmd_file, 'w') as fout:
             fout.write(train_cmd)
         
