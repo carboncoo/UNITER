@@ -46,11 +46,12 @@ class UniterSoftPromptForVisualEntailment(UniterPreTrainedModel):
                                       attn_masks, gather_index,
                                       output_all_encoded_layers=False)
         
-        predicted_output = sequence_output[:, 19, :] # HARD CODE
+        predicted_output = sequence_output[:, self.config.prompt_len-1, :]
         
         # label_mapping = [2160, 2389, 1302] # Yes / Maybe / No
         # label_mapping = [4208, 2654, 1185] # yes / maybe / no
-        label_mapping = [1185, 4208, 2654] # no / yes / maybe
+        # label_mapping = [1185, 4208, 2654] # no / yes / maybe
+        label_mapping = self.config.label_mapping
         answer_scores = self.uniter_softprompt.cls(predicted_output)[:, label_mapping]
         # import ipdb; ipdb.set_trace()
         

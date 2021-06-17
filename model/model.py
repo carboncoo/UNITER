@@ -436,7 +436,7 @@ class UniterSoftPromptModel(UniterPreTrainedModel):
                                     img_feat, img_pos_feat,
                                     gather_index, img_masks=None,
                                     txt_type_ids=None, img_type_ids=None,
-                                    prompt_type='suffix'):
+                                    prompt_type='soft-prefix-first'):
         txt_emb = self.uniter._compute_txt_embeddings(
             input_ids, position_ids, txt_type_ids)
         img_emb = self.uniter._compute_img_embeddings(

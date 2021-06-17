@@ -93,9 +93,8 @@ def main(opts):
     if 'bert' not in bert_model:
         bert_model = 'bert-large-cased'  # quick hack for glove exp
         
-    # model = UniterForVisualEntailment.from_pretrained(
-    #     opts.model_config, state_dict=checkpoint, img_dim=IMG_DIM)
-    model = UniterSoftPromptForVisualEntailment.from_pretrained(
+    model_cls = UniterSoftPromptForVisualEntailment if opts.prompt_type else UniterForVisualEntailment
+    model = model_cls.from_pretrained(
         opts.model_config, state_dict=checkpoint, img_dim=IMG_DIM)
     
     model.to(device)
@@ -112,7 +111,8 @@ def main(opts):
     if rank == 0:
         save_training_meta(opts)
         TB_LOGGER.create(join(opts.output_dir, 'log'))
-        pbar = tqdm(total=opts.num_train_steps)
+        # pbar = tqdm(total=opts.num_train_steps)
+        pbar = NoOp()
         model_saver = ModelSaver(join(opts.output_dir, 'ckpt'))
         pickle.dump(ans2label,
                     open(join(opts.output_dir, 'ckpt', 'ans2label.pkl'), 'wb'))
@@ -187,6 +187,7 @@ def main(opts):
                     ex_per_sec = int(tot_ex / (time()-start))
                     LOGGER.info(f'{tot_ex} examples trained at '
                                 f'{ex_per_sec} ex/s')
+                    LOGGER.info(f"Step {global_step}: loss={running_loss.val}")
                     TB_LOGGER.add_scalar('perf/ex_per_s',
                                          ex_per_sec, global_step)
                     LOGGER.info(f'===========================================')
@@ -381,14 +382,22 @@ if __name__ == "__main__":
     parser.add_argument('--pin_mem', action='store_true',
                         help="pin memory")
 
+    # prompt parameters
+    parser.add_argument('--prompt_len', type=int, default=20,
+                        help='length of prompt')
+    parser.add_argument('--prompt_type', type=str,
+                        help='type of prompt')
+    parser.add_argument('--label_mapping', type=str,
+                        help='label word ids mapping')
+
     # can use config files
     parser.add_argument('--config', help='JSON config files')
 
     args = parse_with_config(parser)
 
-    if exists(args.output_dir) and os.listdir(args.output_dir):
-        raise ValueError("Output directory ({}) already exists and is not "
-                         "empty.".format(args.output_dir))
+    # if exists(args.output_dir) and os.listdir(args.output_dir):
+    #     raise ValueError("Output directory ({}) already exists and is not "
+    #                      "empty.".format(args.output_dir))
 
     if args.conf_th == -1:
         assert args.max_bb + args.max_txt_len + 2 <= 512

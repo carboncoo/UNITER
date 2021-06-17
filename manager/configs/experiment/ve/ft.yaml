@@ -1,0 +1,11 @@
+# @package _global_
+defaults:
+  - override /data: ve
+  - override /training: single_base
+
+scripts:
+  train_py: /data/private/cc/experiment/MMP/UNITER/train_ve.py
+
+mlflow:
+  exp_name: finetune-ve
+  task: ft-ve

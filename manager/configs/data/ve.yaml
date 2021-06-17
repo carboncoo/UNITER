@@ -1,0 +1,15 @@
+# @package _global_
+
+defaults:
+  - default
+
+configs:
+  train_img_db: /data/share/UNITER/ve/img_db/flickr30k
+  train_txt_db: /data/share/UNITER/ve/txt_db/ve_train.db
+  val_img_db: /data/share/UNITER/ve/img_db/flickr30k
+  val_txt_db: /data/share/UNITER/ve/txt_db/ve_dev.db
+  test_img_db: /data/share/UNITER/ve/img_db/flickr30k
+  test_txt_db: /data/share/UNITER/ve/txt_db/ve_test.db
+  compressed_db: false
+  pin_mem: false
+  n_workers: 4
