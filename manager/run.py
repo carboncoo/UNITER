@@ -24,7 +24,7 @@ p3 = r'.*Step (\d+): loss=(0\.\d+|[1-9]\d*\.\d+)'
 
 step = 0
 split = 'val'
-def maybe_log_metrics(textline):``
+def maybe_log_metrics(textline):
     if isinstance(textline, bytes):
         textline = textline.decode('utf8')
     global step
