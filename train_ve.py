@@ -22,7 +22,7 @@ from horovod import torch as hvd
 
 from tqdm import tqdm
 
-from data import (TokenBucketSampler, PrefetchLoader,
+from data import (TokenBucketSampler, PrefetchLoader, FewShotSampler,
                   DetectFeatLmdb, TxtTokLmdb,
                   VeDataset, VeEvalDataset,
                   ve_collate, ve_eval_collate)
@@ -46,7 +46,10 @@ def create_dataloader(img_path, txt_path, batch_size, is_train,
                             opts.num_bb, opts.compressed_db)
     txt_db = TxtTokLmdb(txt_path, opts.max_txt_len if is_train else -1)
     dset = dset_cls(txt_db, img_db)
-    sampler = TokenBucketSampler(dset.lens, bucket_size=BUCKET_SIZE,
+    # import ipdb; ipdb.set_trace()
+    # sampler = TokenBucketSampler(dset.lens, bucket_size=BUCKET_SIZE,
+    #                              batch_size=batch_size, droplast=is_train)
+    sampler = FewShotSampler(dset.lens, bucket_size=BUCKET_SIZE,
                                  batch_size=batch_size, droplast=is_train)
     loader = DataLoader(dset, batch_sampler=sampler,
                         num_workers=opts.n_workers, pin_memory=opts.pin_mem,
@@ -95,10 +98,19 @@ def main(opts):
         bert_model = 'bert-large-cased'  # quick hack for glove exp
         
     model_cls = UniterSoftPromptForVisualEntailment if opts.prompt_type else UniterForVisualEntailment
-    model = model_cls.from_pretrained(
-        opts.model_config, state_dict=checkpoint, img_dim=IMG_DIM,
-        prompt_len=opts.prompt_len, prompt_type=opts.prompt_type, label_mapping=opts.label_mapping
-    )
+    # model = model_cls.from_pretrained(
+    #     opts.model_config, state_dict=checkpoint, img_dim=IMG_DIM,
+    #     prompt_len=opts.prompt_len, prompt_type=opts.prompt_type, label_mapping=opts.label_mapping
+    # )
+    if opts.prompt_type:
+        model = UniterSoftPromptForVisualEntailment.from_pretrained(
+            opts.model_config, state_dict=checkpoint, img_dim=IMG_DIM,
+            prompt_len=opts.prompt_len, prompt_type=opts.prompt_type, label_mapping=opts.label_mapping
+        )
+    else:
+        model = UniterForVisualEntailment.from_pretrained(
+            opts.model_config, state_dict=checkpoint, img_dim=IMG_DIM
+        )
     
     model.to(device)
     # make sure every process has same model parameters in the beginning
