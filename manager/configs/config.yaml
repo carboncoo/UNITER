@@ -1,0 +1,49 @@
+defaults:
+  - optional data: default
+  - optional training: default
+
+scripts:
+  train_sh: /data/private/cc/experiment/MMP/UNITER/manager/scripts/train.sh
+  train_py: /data/private/cc/experiment/MMP/UNITER/train.py
+
+mlflow:
+  exp_name: finetune
+  output_dir: /data/private/cc/experiment/MMP/UNITER/results
+  code_dirs: ['/data/private/cc/experiment/MMP/UNITER/data', 
+              '/data/private/cc/experiment/MMP/UNITER/model', 
+              '/data/private/cc/experiment/MMP/UNITER/optim',
+              '/data/private/cc/experiment/MMP/UNITER/utils']
+  num_gpus: 1
+
+# disable hydra logging
+hydra:
+  run:
+    dir: hydra
+  sweep:
+    dir: hydra
+    subdir: .
+
+configs:
+  model_config: /data/private/cc/experiment/MMP/UNITER/config/uniter-base.json
+  checkpoint: /data/private/cc/experiment/MMP/pretrained_ckpts/pretrained/uniter-base.pt
+  output_dir: /data/private/cc/experiment/MMP/UNITER/results/exp_results
+  seed: 42
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -29,6 +29,9 @@ class UniterSoftPromptForVisualEntailment(UniterPreTrainedModel):
     @classmethod
     def from_pretrained(cls, config_file, state_dict, *inputs, **kwargs):
         config = UniterConfig.from_json_file(config_file)
+        config.prompt_len = kwargs.pop('prompt_len', config.prompt_len)
+        config.prompt_type = kwargs.pop('prompt_type', config.prompt_type)
+        config.label_mapping = kwargs.pop('label_mapping', config.label_mapping)
         model = cls(config, *inputs, **kwargs)
         model.uniter_softprompt = UniterSoftPromptModel.from_pretrained(config_file, state_dict, *inputs, **kwargs)
         return model
@@ -46,11 +49,12 @@ class UniterSoftPromptForVisualEntailment(UniterPreTrainedModel):
                                       attn_masks, gather_index,
                                       output_all_encoded_layers=False)
         
-        predicted_output = sequence_output[:, 19, :] # HARD CODE
+        predicted_output = sequence_output[:, self.config.prompt_len-1, :]
         
         # label_mapping = [2160, 2389, 1302] # Yes / Maybe / No
         # label_mapping = [4208, 2654, 1185] # yes / maybe / no
-        label_mapping = [1185, 4208, 2654] # no / yes / maybe
+        # label_mapping = [1185, 4208, 2654] # no / yes / maybe
+        label_mapping = self.config.label_mapping
         answer_scores = self.uniter_softprompt.cls(predicted_output)[:, label_mapping]
         # import ipdb; ipdb.set_trace()
         

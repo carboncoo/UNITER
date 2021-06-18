@@ -35,7 +35,9 @@ class UniterConfig(object):
                  max_position_embeddings=512,
                  type_vocab_size=2,
                  initializer_range=0.02,
-                 prompt_len=20):
+                 prompt_len=20,
+                 prompt_type=None,
+                 label_mapping=None):
         """Constructs UniterConfig.
         Args:
             vocab_size_or_config_json_file: Vocabulary size of `inputs_ids` in
@@ -81,6 +83,8 @@ class UniterConfig(object):
             self.type_vocab_size = type_vocab_size
             self.initializer_range = initializer_range
             self.prompt_len = prompt_len
+            self.prompt_type = prompt_type
+            self.label_mapping = label_mapping
         else:
             raise ValueError("First argument must be either a vocabulary size "
                              "(int) or the path to a pretrained model config "
@@ -436,7 +440,7 @@ class UniterSoftPromptModel(UniterPreTrainedModel):
                                     img_feat, img_pos_feat,
                                     gather_index, img_masks=None,
                                     txt_type_ids=None, img_type_ids=None,
-                                    prompt_type='suffix'):
+                                    prompt_type='soft-prefix-first'):
         txt_emb = self.uniter._compute_txt_embeddings(
             input_ids, position_ids, txt_type_ids)
         img_emb = self.uniter._compute_img_embeddings(
