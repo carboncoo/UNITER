@@ -50,7 +50,8 @@ def create_dataloader(img_path, txt_path, batch_size, is_train,
     # sampler = TokenBucketSampler(dset.lens, bucket_size=BUCKET_SIZE,
     #                              batch_size=batch_size, droplast=is_train)
     sampler = FewShotSampler(dset.lens, bucket_size=BUCKET_SIZE,
-                                 batch_size=batch_size, droplast=is_train)
+                                batch_size=batch_size, droplast=is_train) if opts.few_shot else TokenBucketSampler(dset.lens, bucket_size=BUCKET_SIZE,
+                                batch_size=batch_size, droplast=is_train)
     loader = DataLoader(dset, batch_sampler=sampler,
                         num_workers=opts.n_workers, pin_memory=opts.pin_mem,
                         collate_fn=collate_fn)
@@ -102,6 +103,7 @@ def main(opts):
     #     opts.model_config, state_dict=checkpoint, img_dim=IMG_DIM,
     #     prompt_len=opts.prompt_len, prompt_type=opts.prompt_type, label_mapping=opts.label_mapping
     # )
+    # import ipdb; ipdb.set_trace()
     if opts.prompt_type:
         model = UniterSoftPromptForVisualEntailment.from_pretrained(
             opts.model_config, state_dict=checkpoint, img_dim=IMG_DIM,
@@ -404,6 +406,10 @@ if __name__ == "__main__":
                         help='type of prompt')
     parser.add_argument('--label_mapping', type=str,
                         help='label word ids mapping')
+
+    # few-shot
+    parser.add_argument('--few_shot', type=bool, default=False,
+                        help='few-shot dataset')
 
     # can use config files
     parser.add_argument('--config', help='JSON config files')

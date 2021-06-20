@@ -17,9 +17,9 @@
   "train_batch_size": 8192,
   "val_batch_size": 8192,
   "gradient_accumulation_steps": 4,
-  "learning_rate": 5e-02,
+  "learning_rate": 5e-05,
   "valid_steps": 500,
-  "num_train_steps": 32000,
+  "num_train_steps": 4000,
   "optim": "adamw",
   "betas": [
       0.9,
@@ -32,5 +32,9 @@
   "seed": 42,
   "fp16": true,
   "n_workers": 4,
-  "pin_mem": false
+  "pin_mem": false,
+  "prompt_len": 20,
+  "prompt_type": "soft-prefix-first",
+  "label_mapping": [1185, 4208, 2654],
+  "few_shot": true
 }

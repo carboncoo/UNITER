@@ -22,12 +22,12 @@ VCR_EXP=$EXP/vcr/default
 #     --output_dir $VE_EXP &
 
 # few-shot finetune
-# VE_EXP=$EXP/ve_fewshot/seed_1
-
-# python train_ve.py --config config/train-ve-fs-base-2gpu.json \
+# VE_EXP=$EXP/ve_fewshot/seed_5
+# python train_ve.py --config config/train-ve-fs-base-1gpu.json \
 #     --output_dir $VE_EXP
+
 # few-shot prompt
-VE_EXP=$EXP/ve_fewshot_prompt/seed_1
+VE_EXP=$EXP/ve_fewshot_prompt_tuning/seed_1
 python train_ve.py --config config/train-ve-fs-prompt-base-1gpu.json \
     --output_dir $VE_EXP
 

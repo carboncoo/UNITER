@@ -1,0 +1,20 @@
+# @package _global_
+defaults:
+  - ve/ft
+  - override /data: ve-fewshot
+
+configs:
+  output_dir: /data/private/mxy/exp/UNITER/finetune/ve_fewshot_prompt/seed_${configs.data_seed}
+  learning_rate: 1.0e-2
+  dropout: 0.0
+  num_train_steps: 4000
+  prompt_len: 20
+  prompt_type: 'soft-prefix-first'
+  # no / yes / maybe
+  label_mapping: [1185, 4208, 2654]
+  few_shot: true
+
+mlflow:
+  exp_name: soft-prompt-ve-fewshot
+  task: prompt-ve-fewshot
+  
