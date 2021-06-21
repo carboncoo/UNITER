@@ -25,6 +25,7 @@ class UniterSoftPromptForVisualEntailment(UniterPreTrainedModel):
         super().__init__(config)
         self.uniter_softprompt = UniterSoftPromptModel(config, img_dim)
         self.apply(self.init_weights)
+        self.uniter_softprompt.set_hard_prompt('[MASK] It is just .')
 
     @classmethod
     def from_pretrained(cls, config_file, state_dict, *inputs, **kwargs):
@@ -49,7 +50,7 @@ class UniterSoftPromptForVisualEntailment(UniterPreTrainedModel):
                                       attn_masks, gather_index,
                                       output_all_encoded_layers=False)
         
-        predicted_output = sequence_output[:, self.config.prompt_len-1, :]
+        predicted_output = sequence_output[:, self.uniter_softprompt.prediction_pos, :]
         
         # label_mapping = [2160, 2389, 1302] # Yes / Maybe / No
         # label_mapping = [4208, 2654, 1185] # yes / maybe / no

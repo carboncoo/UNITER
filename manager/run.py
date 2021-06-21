@@ -3,6 +3,7 @@ import re
 import sys
 import glob
 import json
+import shutil
 import mlflow
 import logging
 import subprocess
@@ -56,7 +57,6 @@ def main(cfg):
     mlflow.set_experiment(mlflow_cfg.exp_name)
     
     with mlflow.start_run() as run:
-        # get exp infos
         run_id = run.info.run_id
         save_dir = run.info.artifact_uri.replace('file://', '')
         
@@ -86,18 +86,27 @@ def main(cfg):
             fout.write(train_cmd)
         
         # run cmd
-        log_file = os.path.join(save_dir, 'log.txt')
-        log_output = open(log_file, 'wb')
-        p = subprocess.Popen(train_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        while p.poll() is None:
-            line = p.stdout.readline()
-            maybe_log_metrics(line) # capture metrics
-            log_output.write(line)
-        if p.returncode == 0:
-            log_output.close()
-            # for json_file in glob.glob(os.path.join(cfg.output_dir, '*.json')):
-            #     log_artifact(json_file, artifact_path="results")
-            logger.info('Training success')
+        if mlflow_cfg.debug:
+            p = subprocess.run(train_cmd, shell=True)
+            print(f'rm -rf {exp_cfg.output_dir}')
+            print(f'rm -rf {os.path.dirname(save_dir)}')
+            # shutil.rmtree(exp_cfg.output_dir)
+            # shutil.rmtree(os.path.dirname(save_dir))
+        else:
+            log_file = os.path.join(save_dir, 'log.txt')
+            log_output = open(log_file, 'wb')
+            p = subprocess.Popen(train_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            while p.poll() is None:
+                line = p.stdout.readline()
+                maybe_log_metrics(line) # capture metrics
+                if mlflow_cfg.verbose:
+                    print(line)
+                log_output.write(line)
+            if p.returncode == 0:
+                log_output.close()
+                # for json_file in glob.glob(os.path.join(cfg.output_dir, '*.json')):
+                #     log_artifact(json_file, artifact_path="results")
+                logger.info('Training success')
 
 
 if __name__ == "__main__":

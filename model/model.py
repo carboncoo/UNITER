@@ -15,6 +15,8 @@ import torch
 from torch import nn
 from apex.normalization.fused_layer_norm import FusedLayerNorm
 
+from transformers import AutoTokenizer
+
 from .layer import BertLayer, BertPooler, BertOnlyMLMHead
 
 logger = logging.getLogger(__name__)
@@ -390,14 +392,35 @@ class UniterSoftPromptModel(UniterPreTrainedModel):
         self.cls = BertOnlyMLMHead(
             config, self.uniter.embeddings.word_embeddings.weight)
         self.cls.requires_grad_(False)
-        
-        # add soft prompts
-        self.soft_prompt_embeddings = nn.Embedding(config.prompt_len,
-                                                   config.hidden_size)
-        self.soft_prompt_embeddings.requires_grad_(True)
-        
         self.apply(self.init_weights)
         
+        # add soft prompts
+        # self.soft_prompt_embeddings = nn.Embedding(config.prompt_len,
+        #                                            config.hidden_size)
+        
+        start_id = 1103 # id of 'the' in the vocabulary
+        prompt_emb = self.uniter.embeddings.word_embeddings.weight[start_id:start_id+config.prompt_len].clone().detach()
+        self.soft_prompt_embeddings = nn.parameter.Parameter(prompt_emb)
+        self.soft_prompt_embeddings.requires_grad_(True)
+        self.prediction_pos = 0
+        
+        self.tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
+    
+    def set_hard_prompt(self, hard_prompt):
+        # hard_prompt = '[MASK] It is just .'
+        prompt_ids = self.tokenizer(hard_prompt, return_tensors="pt")['input_ids']
+        prompt_ids = prompt_ids[:, 1:][:, :-1][0]
+        prompt_emb = self.uniter.embeddings.word_embeddings(prompt_ids).clone().detach()
+        
+        mask_id = self.tokenizer.convert_tokens_to_ids(self.tokenizer.mask_token)
+        
+        min_len = min(self.soft_prompt_embeddings.shape[0], prompt_emb.shape[0])
+        self.soft_prompt_embeddings.data[-min_len:] = prompt_emb.data[-min_len:]
+        
+        mask_pos = (prompt_ids[-min_len:] == mask_id).nonzero()
+        if mask_pos.shape[0] != 0:
+            self.prediction_pos = self.config.prompt_len - min_len + mask_pos[0].item() + 1
+    
     def forward(self, input_ids, position_ids,
                 img_feat, img_pos_feat,
                 attention_mask, gather_index=None, img_masks=None,
@@ -441,8 +464,19 @@ class UniterSoftPromptModel(UniterPreTrainedModel):
                                     gather_index, img_masks=None,
                                     txt_type_ids=None, img_type_ids=None,
                                     prompt_type='soft-prefix-first'):
+        if txt_type_ids is not None:
+            bos_type_ids = txt_type_ids[:, :1]
+            txt_type_ids = txt_type_ids[:, 1:]
+        else:
+            bos_type_ids = None
+            
+        # seperate [CLS] from raw text   
         txt_emb = self.uniter._compute_txt_embeddings(
-            input_ids, position_ids, txt_type_ids)
+            input_ids[:, 1:], position_ids[:, 1:] + self.config.prompt_len, txt_type_ids)
+        bos_emb = self.uniter._compute_txt_embeddings(
+            input_ids[:, :1], position_ids[:, :1], bos_type_ids)
+        gather_index = gather_index[:, 1:] - 1 # 
+        
         img_emb = self.uniter._compute_img_embeddings(
             img_feat, img_pos_feat, img_masks, img_type_ids)
         # align back to most compact input
@@ -451,18 +485,19 @@ class UniterSoftPromptModel(UniterPreTrainedModel):
         embedding_output = torch.gather(torch.cat([txt_emb, img_emb], dim=1),
                                         dim=1, index=gather_index)
         
-        prompt_pos_ids = torch.arange(self.config.prompt_len).to(position_ids).unsqueeze(0)
+        prompt_pos_ids = (torch.arange(self.config.prompt_len) + 1).to(position_ids).unsqueeze(0)
         prompt_pos_emb = self.uniter.embeddings.position_embeddings(prompt_pos_ids)
         
         prompt_type_ids = torch.zeros_like(prompt_pos_ids)
         prompt_type_emb = self.uniter.embeddings.token_type_embeddings(prompt_type_ids)
         
-        prompt_emb = (self.soft_prompt_embeddings.weight.unsqueeze(0)
+        prompt_emb = (self.soft_prompt_embeddings.unsqueeze(0)
                       + prompt_pos_emb
                       + prompt_type_emb) # 1 x prompt_len x d
 
-        prompt_emb = prompt_emb.expand(embedding_output.shape[0], -1, -1)
+        # prompt_emb = prompt_emb.expand(embedding_output.shape[0], -1, -1)
+        prompt_emb = prompt_emb.repeat(embedding_output.shape[0], 1, 1)
         
-        embedding_output = torch.cat([prompt_emb, embedding_output], dim=1)
+        embedding_output = torch.cat([bos_emb, prompt_emb, embedding_output], dim=1)
         
         return embedding_output

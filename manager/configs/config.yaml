@@ -3,17 +3,19 @@ defaults:
   - optional training: default
 
 scripts:
-  train_sh: /data/private/mxy/code/cc-UNITER/manager/scripts/train.sh
-  train_py: /data/private/mxy/code/cc-UNITER/train_ve.py
+  train_sh: /data/private/cc/experiment/MMP/UNITER/manager/scripts/train.sh
+  train_py: /data/private/cc/experiment/MMP/UNITER/train_ve.py
 
 mlflow:
   exp_name: finetune
-  output_dir: /data/private/mxy/exp/UNITER/finetune
-  code_dirs: ['/data/private/mxy/code/cc-UNITER/data', 
-              '/data/private/mxy/code/cc-UNITER/model', 
-              '/data/private/mxy/code/cc-UNITER/optim',
-              '/data/private/mxy/code/cc-UNITER/utils']
+  output_dir: /data/private/cc/experiment/MMP/UNITER/results
+  code_dirs: ['/data/private/cc/experiment/MMP/UNITER/data', 
+              '/data/private/cc/experiment/MMP/UNITER/model', 
+              '/data/private/cc/experiment/MMP/UNITER/optim',
+              '/data/private/cc/experiment/MMP/UNITER/utils']
   num_gpus: 1
+  debug: false
+  verbose: false
 
 # disable hydra logging
 hydra:

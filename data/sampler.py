@@ -54,7 +54,7 @@ class TokenBucketSampler(Sampler):
             if not self._droplast and batch_indices:
                 batches.append(batch_indices)
         random.shuffle(batches)
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         return iter(batches)
 
     def __len__(self):
