@@ -100,7 +100,7 @@ def main(cfg):
                 line = p.stdout.readline()
                 maybe_log_metrics(line) # capture metrics
                 if mlflow_cfg.verbose:
-                    print(line)
+                    print(line.decode('utf8'), end='')
                 log_output.write(line)
             if p.returncode == 0:
                 log_output.close()

@@ -408,6 +408,8 @@ class UniterSoftPromptModel(UniterPreTrainedModel):
     
     def set_hard_prompt(self, hard_prompt):
         # hard_prompt = '[MASK] It is just .'
+        start_id = 1103
+        self.soft_prompt_embeddings.data = self.uniter.embeddings.word_embeddings.weight[start_id:start_id+self.config.prompt_len].clone().detach()
         prompt_ids = self.tokenizer(hard_prompt, return_tensors="pt")['input_ids']
         prompt_ids = prompt_ids[:, 1:][:, :-1][0]
         prompt_emb = self.uniter.embeddings.word_embeddings(prompt_ids).clone().detach()
@@ -451,7 +453,7 @@ class UniterSoftPromptModel(UniterPreTrainedModel):
                 input_ids, position_ids,
                 img_feat, img_pos_feat,
                 gather_index, img_masks, txt_type_ids, img_type_ids) # b x max_l x d
-
+        
         encoded_layers = self.uniter.encoder(
             embedding_output, extended_attention_mask,
             output_all_encoded_layers=output_all_encoded_layers)

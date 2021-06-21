@@ -35,6 +35,7 @@ class UniterSoftPromptForVisualEntailment(UniterPreTrainedModel):
         config.label_mapping = kwargs.pop('label_mapping', config.label_mapping)
         model = cls(config, *inputs, **kwargs)
         model.uniter_softprompt = UniterSoftPromptModel.from_pretrained(config_file, state_dict, *inputs, **kwargs)
+        model.uniter_softprompt.set_hard_prompt('[MASK] It is just .')
         return model
 
     def forward(self, batch, compute_loss=True):
