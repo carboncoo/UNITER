@@ -15,6 +15,8 @@ configs:
   # no / yes / maybe
   label_mapping: [1185, 4208, 2654]
   few_shot: true
+  pretrain_param_fixed: true
+  prompt_param_fixed: false
 
 mlflow:
   exp_name: soft-prompt-ve-fewshot
