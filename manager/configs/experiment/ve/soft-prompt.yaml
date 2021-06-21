@@ -3,7 +3,7 @@ defaults:
   - ve/ft
 
 configs:
-  learning_rate: 1.0e-2
+  learning_rate: 5.0e-2
   dropout: 0.0
   num_train_steps: 16000
   prompt_len: 20
