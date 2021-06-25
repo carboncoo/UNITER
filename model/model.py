@@ -36,10 +36,7 @@ class UniterConfig(object):
                  attention_probs_dropout_prob=0.1,
                  max_position_embeddings=512,
                  type_vocab_size=2,
-                 initializer_range=0.02,
-                 prompt_len=20,
-                 prompt_type=None,
-                 label_mapping=None):
+                 initializer_range=0.02):
         """Constructs UniterConfig.
         Args:
             vocab_size_or_config_json_file: Vocabulary size of `inputs_ids` in
@@ -84,9 +81,6 @@ class UniterConfig(object):
             self.max_position_embeddings = max_position_embeddings
             self.type_vocab_size = type_vocab_size
             self.initializer_range = initializer_range
-            self.prompt_len = prompt_len
-            self.prompt_type = prompt_type
-            self.label_mapping = label_mapping
         else:
             raise ValueError("First argument must be either a vocabulary size "
                              "(int) or the path to a pretrained model config "
@@ -385,23 +379,30 @@ class UniterModel(UniterPreTrainedModel):
 class UniterSoftPromptModel(UniterPreTrainedModel):
     """ Modification for Soft-Prompt
     """
-    def __init__(self, config, img_dim):
+    def __init__(self, config, img_dim, 
+                 prompt_len=20,
+                 prompt_type=None,
+                 label_mapping=None,
+                 pretrain_param_fixed=True,
+                 prompt_param_fixed=False):
         super().__init__(config)
         self.uniter = UniterModel(config, img_dim)
-        self.uniter.requires_grad_(False)
+        # self.uniter.requires_grad_(True)
+        self.uniter.requires_grad_(not pretrain_param_fixed)
         self.cls = BertOnlyMLMHead(
             config, self.uniter.embeddings.word_embeddings.weight)
-        self.cls.requires_grad_(False)
+        self.cls.requires_grad_(not pretrain_param_fixed)
         self.apply(self.init_weights)
         
         # add soft prompts
-        # self.soft_prompt_embeddings = nn.Embedding(config.prompt_len,
-        #                                            config.hidden_size)
+        self.prompt_len = prompt_len
+        self.prompt_type = prompt_type
+        self.label_mapping = label_mapping
         
         start_id = 1103 # id of 'the' in the vocabulary
-        prompt_emb = self.uniter.embeddings.word_embeddings.weight[start_id:start_id+config.prompt_len].clone().detach()
+        prompt_emb = self.uniter.embeddings.word_embeddings.weight[start_id:start_id+prompt_len].clone().detach()
         self.soft_prompt_embeddings = nn.parameter.Parameter(prompt_emb)
-        self.soft_prompt_embeddings.requires_grad_(True)
+        self.soft_prompt_embeddings.requires_grad_(not prompt_param_fixed)
         self.prediction_pos = 0
         
         self.tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
@@ -409,7 +410,7 @@ class UniterSoftPromptModel(UniterPreTrainedModel):
     def set_hard_prompt(self, hard_prompt):
         # hard_prompt = '[MASK] It is just .'
         start_id = 1103
-        self.soft_prompt_embeddings.data = self.uniter.embeddings.word_embeddings.weight[start_id:start_id+self.config.prompt_len].clone().detach()
+        self.soft_prompt_embeddings.data = self.uniter.embeddings.word_embeddings.weight[start_id:start_id+self.prompt_len].clone().detach()
         prompt_ids = self.tokenizer(hard_prompt, return_tensors="pt")['input_ids']
         prompt_ids = prompt_ids[:, 1:][:, :-1][0]
         prompt_emb = self.uniter.embeddings.word_embeddings(prompt_ids).clone().detach()
@@ -421,7 +422,7 @@ class UniterSoftPromptModel(UniterPreTrainedModel):
         
         mask_pos = (prompt_ids[-min_len:] == mask_id).nonzero()
         if mask_pos.shape[0] != 0:
-            self.prediction_pos = self.config.prompt_len - min_len + mask_pos[0].item() + 1
+            self.prediction_pos = self.prompt_len - min_len + mask_pos[0].item() + 1
     
     def forward(self, input_ids, position_ids,
                 img_feat, img_pos_feat,
@@ -429,7 +430,7 @@ class UniterSoftPromptModel(UniterPreTrainedModel):
                 output_all_encoded_layers=True,
                 txt_type_ids=None, img_type_ids=None):
         
-        prompt_mask = torch.ones(attention_mask.shape[0], self.config.prompt_len).to(attention_mask)
+        prompt_mask = torch.ones(attention_mask.shape[0], self.prompt_len).to(attention_mask)
         # attention_mask = torch.cat([attention_mask, prompt_mask], dim=-1)
         attention_mask = torch.cat([prompt_mask, attention_mask], dim=-1)
         
@@ -474,7 +475,7 @@ class UniterSoftPromptModel(UniterPreTrainedModel):
             
         # seperate [CLS] from raw text   
         txt_emb = self.uniter._compute_txt_embeddings(
-            input_ids[:, 1:], position_ids[:, 1:] + self.config.prompt_len, txt_type_ids)
+            input_ids[:, 1:], position_ids[:, 1:] + self.prompt_len, txt_type_ids)
         bos_emb = self.uniter._compute_txt_embeddings(
             input_ids[:, :1], position_ids[:, :1], bos_type_ids)
         gather_index = gather_index[:, 1:] - 1 # 
@@ -487,7 +488,7 @@ class UniterSoftPromptModel(UniterPreTrainedModel):
         embedding_output = torch.gather(torch.cat([txt_emb, img_emb], dim=1),
                                         dim=1, index=gather_index)
         
-        prompt_pos_ids = (torch.arange(self.config.prompt_len) + 1).to(position_ids).unsqueeze(0)
+        prompt_pos_ids = (torch.arange(self.prompt_len) + 1).to(position_ids).unsqueeze(0)
         prompt_pos_emb = self.uniter.embeddings.position_embeddings(prompt_pos_ids)
         
         prompt_type_ids = torch.zeros_like(prompt_pos_ids)

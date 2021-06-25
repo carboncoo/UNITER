@@ -107,7 +107,8 @@ def main(opts):
     if opts.prompt_type:
         model = UniterSoftPromptForVisualEntailment.from_pretrained(
             opts.model_config, state_dict=checkpoint, img_dim=IMG_DIM,
-            prompt_len=opts.prompt_len, prompt_type=opts.prompt_type, label_mapping=opts.label_mapping
+            prompt_len=opts.prompt_len, prompt_type=opts.prompt_type, label_mapping=opts.label_mapping,
+            pretrain_param_fixed=opts.pretrain_param_fixed, prompt_param_fixed=opts.prompt_param_fixed
         )
     else:
         model = UniterForVisualEntailment.from_pretrained(
