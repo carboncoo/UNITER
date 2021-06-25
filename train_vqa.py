@@ -25,7 +25,7 @@ from data import (TokenBucketSampler, PrefetchLoader,
                   TxtTokLmdb, ImageLmdbGroup, ConcatDatasetWithLens,
                   VqaDataset, VqaEvalDataset,
                   vqa_collate, vqa_eval_collate)
-from model.vqa import UniterForVisualQuestionAnswering, UniterSoftPromptForVisualQuestionAnswering
+from model.vqa import UniterForVisualQuestionAnswering
 from optim import AdamW, get_lr_sched
 
 from utils.logger import LOGGER, TB_LOGGER, RunningMeter, add_log_to_file
@@ -107,6 +107,7 @@ def main(opts):
     ans2label = json.load(open(f'{dirname(abspath(__file__))}'
                                f'/utils/ans2label.json'))
     label2ans = {label: ans for ans, label in ans2label.items()}
+    import ipdb; ipdb.set_trace()
 
     # load DBs and image dirs
     all_img_dbs = ImageLmdbGroup(opts.conf_th, opts.max_bb, opts.min_bb,

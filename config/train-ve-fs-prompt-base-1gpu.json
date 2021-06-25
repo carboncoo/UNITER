@@ -1,7 +1,7 @@
 {
-  "train_txt_db": "/data/share/UNITER/ve_fewshot/txt_db/ve_train.db/seed_1",
+  "train_txt_db": "/data/share/UNITER/ve_fewshot/txt_db/ve_train.db/seed_2",
   "train_img_db": "/data/share/UNITER/ve/img_db/flickr30k",
-  "val_txt_db": "/data/share/UNITER/ve_fewshot/txt_db/ve_dev.db/seed_1",
+  "val_txt_db": "/data/share/UNITER/ve_fewshot/txt_db/ve_dev.db/seed_2",
   "val_img_db": "/data/share/UNITER/ve/img_db/flickr30k",
   "test_txt_db": "/data/share/UNITER/ve/txt_db/ve_test.db",
   "test_img_db": "/data/share/UNITER/ve/img_db/flickr30k",
@@ -17,7 +17,7 @@
   "train_batch_size": 8192,
   "val_batch_size": 8192,
   "gradient_accumulation_steps": 4,
-  "learning_rate": 5e-05,
+  "learning_rate": 5e-02,
   "valid_steps": 500,
   "num_train_steps": 4000,
   "optim": "adamw",

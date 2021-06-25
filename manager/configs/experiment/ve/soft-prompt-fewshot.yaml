@@ -4,10 +4,10 @@ defaults:
   - override /data: ve-fewshot
 
 configs:
-  # output_dir: /data/private/mxy/exp/UNITER/finetune/ve_fewshot_prompt/seed_${configs.data_seed}
-  learning_rate: 1.0e-2
+  output_dir: /data/private/mxy/exp/UNITER/finetune/ve_fewshot_prompt/seed_${configs.data_seed}
+  learning_rate: 5e-2
   dropout: 0.0
-  num_train_steps: 2000
+  num_train_steps: 4000
   warmup_steps: 200
   valid_steps: 100
   prompt_len: 20

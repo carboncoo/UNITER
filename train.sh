@@ -27,9 +27,12 @@ VCR_EXP=$EXP/vcr/default
 #     --output_dir $VE_EXP
 
 # few-shot prompt
-VE_EXP=$EXP/ve_fewshot_prompt_tuning/seed_1
-python train_ve.py --config config/train-ve-fs-prompt-base-1gpu.json \
-    --output_dir $VE_EXP
+DATA_SEED=3
+VE_EXP=$EXP/ve_fewshot_prompt/seed_$DATA_SEED
+# TOKENIZERS_PARALLELISM=true python train_ve.py --config config/train-ve-fs-prompt-base-1gpu.json \
+#     --output_dir $VE_EXP \
+#     --train_txt_db /data/share/UNITER/ve_fewshot/txt_db/ve_train.db/seed_$DATA_SEED \
+#     --val_txt_db /data/share/UNITER/ve_fewshot/txt_db/ve_dev.db/seed_$DATA_SEED
 
 
 
@@ -43,3 +46,8 @@ ZS_ITM_RESULT=$EXP/itr/zs_result
 
 # itr normal finetune
 # nohup horovodrun -np 4 python train_itm.py --config config/train-itm-flickr-base-8gpu.json > itr_flickr_normal.out 2>&1 &
+
+# train vqa
+VQA_EXP=$EXP/vqa/finetune
+python train_vqa.py --config config/train-vqa-base-1gpu.json \
+    --output_dir $VQA_EXP

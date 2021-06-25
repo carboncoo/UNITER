@@ -4,7 +4,7 @@ defaults:
   - override /training: single_base
 
 scripts:
-  train_py: /data/private/cc/experiment/MMP/UNITER/train_ve.py
+  train_py: /data/private/mxy/code/cc-UNITER/train_ve.py
 
 mlflow:
   exp_name: finetune-ve
