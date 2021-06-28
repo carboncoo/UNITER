@@ -34,6 +34,13 @@ class UniterSoftPromptForVisualEntailment(UniterPreTrainedModel):
         model = cls(config, *inputs, **kwargs)
         model.uniter_softprompt = UniterSoftPromptModel.from_pretrained(config_file, state_dict, *inputs, **kwargs)
         model.uniter_softprompt.set_hard_prompt('[MASK] It is just .')
+        class_weights = model.uniter_softprompt.uniter.embeddings.word_embeddings.weight[kwargs.get('label_mapping', [0])].clone()
+        model.uniter_softprompt.cls.predictions.decoder = nn.Linear(
+                                    class_weights.size(1),
+                                    class_weights.size(0),
+                                    bias=False)
+        model.uniter_softprompt.cls.predictions.decoder.weight.data = class_weights
+        model.uniter_softprompt.cls.predictions.bias = nn.Parameter(model.uniter_softprompt.cls.predictions.bias.data[kwargs.get('label_mapping', [0])].clone())
         return model
 
     def forward(self, batch, compute_loss=True):
@@ -55,7 +62,8 @@ class UniterSoftPromptForVisualEntailment(UniterPreTrainedModel):
         # label_mapping = [4208, 2654, 1185] # yes / maybe / no
         # label_mapping = [1185, 4208, 2654] # no / yes / maybe
         label_mapping = self.label_mapping
-        answer_scores = self.uniter_softprompt.cls(predicted_output)[:, label_mapping]
+        # answer_scores = self.uniter_softprompt.cls(predicted_output)[:, label_mapping]
+        answer_scores = self.uniter_softprompt.cls(predicted_output)
         # import ipdb; ipdb.set_trace()
         
         # pooled_output = self.uniter.pooler(sequence_output)
