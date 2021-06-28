@@ -5,18 +5,18 @@ defaults:
 
 configs:
   # output_dir: /data/private/mxy/exp/UNITER/finetune/ve_fewshot_prompt/seed_${configs.data_seed}
-  learning_rate: 1.0e-2
-  dropout: 0.0
+  learning_rate: 1.0e-5
+  dropout: 0.3
   num_train_steps: 2000
   warmup_steps: 200
   valid_steps: 100
-  prompt_len: 20
+  prompt_len: 5
   prompt_type: 'soft-prefix-first'
   # no / yes / maybe
   label_mapping: [1185, 4208, 2654]
   few_shot: true
-  pretrain_param_fixed: true
-  prompt_param_fixed: false
+  pretrain_param_fixed: false
+  prompt_param_fixed: true
 
 mlflow:
   exp_name: soft-prompt-ve-fewshot
