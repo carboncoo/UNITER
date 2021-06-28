@@ -5,10 +5,10 @@ defaults:
 
 configs:
   data_seed: 2
-  train_img_db: [/data/share/UNITER/vqa/img_db/coco_train2014]
-  train_txt_db: [/data/share/UNITER/vqa_fewshot/txt_db/vqa_train.db/seed_${configs.data_seed}]
+  train_img_dbs: [/data/share/UNITER/vqa/img_db/coco_train2014]
+  train_txt_dbs: [/data/share/UNITER/vqa_fewshot/txt_db/vqa_train.db/seed_2]
   val_img_db: /data/share/UNITER/vqa/img_db/coco_val2014
-  val_txt_db: /data/share/UNITER/vqa_fewshot/txt_db/vqa_devval.db/seed_${configs.data_seed}
+  val_txt_db: /data/share/UNITER/vqa/txt_db/vqa_devval.db
   test_img_db: /data/share/UNITER/vqa/img_db/coco_test2015
   test_txt_db: /data/share/UNITER/vqa/txt_db/vqa_test.db
   compressed_db: false

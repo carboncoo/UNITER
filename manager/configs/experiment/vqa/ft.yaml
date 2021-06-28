@@ -3,6 +3,12 @@ defaults:
   - override /data: vqa
   - override /training: single_base
 
+configs:
+  train_batch_size: 10240
+  val_batch_size: 10240
+  gradient_accumulation_steps: 1
+  valid_steps: 500
+
 scripts:
   train_py: /data/private/mxy/code/cc-UNITER/train_vqa.py
 

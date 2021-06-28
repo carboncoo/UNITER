@@ -55,13 +55,13 @@ VQA_EXP=$EXP/vqa/finetune
 
 # prompt
 VQA_EXP=$EXP/vqa/prompt
-# TOKENIZERS_PARALLELISM=true python train_vqa.py --config config/train-vqa-prompt-base-1gpu.json \
-#     --output_dir $VQA_EXP
+TOKENIZERS_PARALLELISM=true python train_vqa.py --config config/train-vqa-prompt-base-1gpu.json \
+    --output_dir $VQA_EXP
 
 # few-shot finetune
 VQA_DATA_SEED=2
 VQA_EXP=$EXP/vqa/fewshot/finetune/seed_${VQA_DATA_SEED}
-python train_vqa.py --config config/train-vqa-fs-base-1gpu.json \
-    --output_dir $VQA_EXP
-    --train_txt_db [/data/share/UNITER/vqa_fewshot/txt_db/vqa_train.db/seed_${VQA_DATA_SEED}] \
-    --val_txt_db /data/share/UNITER/vqa/txt_db/vqa_devval.db
+# python train_vqa.py --config config/train-vqa-fs-base-1gpu.json \
+#     --output_dir $VQA_EXP \
+#     --train_txt_db [/data/share/UNITER/vqa_fewshot/txt_db/vqa_train.db/seed_${VQA_DATA_SEED}] \
+#     --val_txt_db /data/share/UNITER/vqa/txt_db/vqa_devval.db
