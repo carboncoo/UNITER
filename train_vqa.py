@@ -25,7 +25,7 @@ from data import (TokenBucketSampler, PrefetchLoader,
                   TxtTokLmdb, ImageLmdbGroup, ConcatDatasetWithLens,
                   VqaDataset, VqaEvalDataset,
                   vqa_collate, vqa_eval_collate)
-from model.vqa import UniterForVisualQuestionAnswering
+from model.vqa import UniterForVisualQuestionAnswering, UniterSoftPromptForVisualQuestionAnswering
 from optim import AdamW, get_lr_sched
 
 from utils.logger import LOGGER, TB_LOGGER, RunningMeter, add_log_to_file
@@ -107,7 +107,6 @@ def main(opts):
     ans2label = json.load(open(f'{dirname(abspath(__file__))}'
                                f'/utils/ans2label.json'))
     label2ans = {label: ans for ans, label in ans2label.items()}
-    import ipdb; ipdb.set_trace()
 
     # load DBs and image dirs
     all_img_dbs = ImageLmdbGroup(opts.conf_th, opts.max_bb, opts.min_bb,
@@ -129,7 +128,6 @@ def main(opts):
     val_dataset = VqaEvalDataset(len(ans2label), val_txt_db, val_img_db)
     val_dataloader = build_dataloader(val_dataset, vqa_eval_collate,
                                       False, opts)
-
     # Prepare model
     if opts.checkpoint:
         checkpoint = torch.load(opts.checkpoint)
@@ -143,9 +141,18 @@ def main(opts):
     # model = UniterForVisualQuestionAnswering.from_pretrained(
     #     opts.model_config, checkpoint,
     #     img_dim=IMG_DIM, num_answer=len(ans2label))
-    model = UniterSoftPromptForVisualQuestionAnswering.from_pretrained(
-        opts.model_config, checkpoint,
-        img_dim=IMG_DIM, num_answer=len(ans2label))
+    if opts.prompt_type:
+        print("soft prompt model")
+        model = UniterSoftPromptForVisualQuestionAnswering.from_pretrained(
+            opts.model_config, state_dict=checkpoint,
+            img_dim=IMG_DIM, num_answer=len(ans2label),
+            prompt_len=opts.prompt_len, prompt_type=opts.prompt_type,
+            pretrain_param_fixed=opts.pretrain_param_fixed, prompt_param_fixed=opts.prompt_param_fixed
+        )  
+    else:
+        model = UniterForVisualQuestionAnswering.from_pretrained(
+            opts.model_config, state_dict=checkpoint,
+            img_dim=IMG_DIM, num_answer=len(ans2label))
     model.to(device)
     # make sure every process has same model parameters in the beginning
     broadcast_tensors([p.data for p in model.parameters()], 0)
@@ -386,6 +393,18 @@ if __name__ == "__main__":
     parser.add_argument('--n_workers', type=int, default=4,
                         help="number of data workers")
     parser.add_argument('--pin_mem', action='store_true', help="pin memory")
+
+    # prompt parameters
+    parser.add_argument('--prompt_len', type=int, default=20,
+                        help='length of prompt')
+    parser.add_argument('--prompt_type', type=str,
+                        help='type of prompt')
+    parser.add_argument('--label_mapping', type=str,
+                        help='label word ids mapping')
+
+    # few-shot
+    parser.add_argument('--few_shot', type=bool, default=False,
+                        help='few-shot dataset')
 
     # can use config files
     parser.add_argument('--config', help='JSON config files')

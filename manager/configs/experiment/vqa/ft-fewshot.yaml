@@ -1,0 +1,16 @@
+# @package _global_
+defaults:
+  - vqa/ft
+  - override /data: vqa-fewshot
+
+configs:
+  # output_dir: /data/private/mxy/exp/UNITER/finetune/ve_fewshot_prompt/seed_${configs.data_seed}
+  learning_rate: 8.0e-5
+  dropout: 0.3
+  num_train_steps: 4000
+  valid_steps: 100
+
+mlflow:
+  exp_name: finetune-vqa-fewshot
+  task: ft-vqa-fewshot
+  

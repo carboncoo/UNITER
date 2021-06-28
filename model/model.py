@@ -379,7 +379,7 @@ class UniterModel(UniterPreTrainedModel):
 class UniterSoftPromptModel(UniterPreTrainedModel):
     """ Modification for Soft-Prompt
     """
-    def __init__(self, config, img_dim, 
+    def __init__(self, config, img_dim, num_answer = 3129,
                  prompt_len=20,
                  prompt_type=None,
                  label_mapping=None,

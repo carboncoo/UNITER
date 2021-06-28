@@ -36,5 +36,7 @@
   "prompt_len": 20,
   "prompt_type": "soft-prefix-first",
   "label_mapping": [1185, 4208, 2654],
-  "few_shot": true
+  "few_shot": true,
+  "pretrain_param_fixed": true,
+  "prompt_param_fixed": false
 }

@@ -28,7 +28,7 @@ hydra:
 configs:
   model_config: /data/private/cc/experiment/MMP/UNITER/config/uniter-base.json
   checkpoint: /data/private/cc/experiment/MMP/pretrained_ckpts/pretrained/uniter-base.pt
-  output_dir: /data/private/mxy/exp/UNITER/finetune/ve_fewshot/seed_${configs.data_seed}
+  output_dir: /data/private/mxy/exp/UNITER/finetune/vqa/fewshot/seed_${configs.data_seed}
   seed: 42
 
 

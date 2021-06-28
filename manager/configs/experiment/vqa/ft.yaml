@@ -1,0 +1,11 @@
+# @package _global_
+defaults:
+  - override /data: vqa
+  - override /training: single_base
+
+scripts:
+  train_py: /data/private/mxy/code/cc-UNITER/train_vqa.py
+
+mlflow:
+  exp_name: finetune-vqa
+  task: ft-vqa
