@@ -86,9 +86,11 @@ class UniterSoftPromptForVisualQuestionAnswering(UniterPreTrainedModel):
         # class_weights = model.uniter_softprompt.uniter.embeddings.word_embeddings.weight[kwargs.get('label_mapping', [0])].clone()
         class_weights = torch.zeros(len(label_mapping), config.hidden_size)
         for i in range(len(label_mapping)):
-            for label in label_mapping[i]:
-                class_weights[i] +=  model.uniter_softprompt.uniter.embeddings.word_embeddings.weight[label].clone()
-            class_weights[i] /= len(label_mapping[i])
+            class_weights[i] = torch.mean(model.uniter_softprompt.uniter.embeddings.word_embeddings.weight[label_mapping[i]].clone(), 0)
+            # for label in label_mapping[i]:
+                
+                # class_weights[i] +=  model.uniter_softprompt.uniter.embeddings.word_embeddings.weight[label].clone()
+            # class_weights[i] /= len(label_mapping[i])
         model.uniter_softprompt.cls.predictions.decoder = nn.Linear(
                                     class_weights.size(1),
                                     class_weights.size(0),
@@ -98,11 +100,12 @@ class UniterSoftPromptForVisualQuestionAnswering(UniterPreTrainedModel):
         # model.uniter_softprompt.cls.predictions.bias = nn.Parameter(model.uniter_softprompt.cls.predictions.bias.data[kwargs.get('label_mapping', [0])].clone())
         bias = torch.zeros(len(label_mapping))
         for i in range(len(label_mapping)):
-            for label in label_mapping[i]:
-                bias[i] +=  model.uniter_softprompt.cls.predictions.bias.data[label].clone()
-            bias[i] /= len(label_mapping[i])
+            bias[i] = torch.mean(model.uniter_softprompt.cls.predictions.bias.data[label_mapping[i]].clone(), 0)
+            # for label in label_mapping[i]:
+            #     bias[i] +=  model.uniter_softprompt.cls.predictions.bias.data[label].clone()
+            # bias[i] /= len(label_mapping[i])
         model.uniter_softprompt.cls.predictions.bias.data = bias
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         return model
 
     def forward(self, batch, compute_loss=True):
