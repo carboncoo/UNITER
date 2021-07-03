@@ -17,9 +17,11 @@ VCR_EXP=$EXP/vcr/default
 
 
 # train ve
-# VE_EXP=$EXP/ve_fewshot/seed_1
+VE_EXP=$EXP/ve/mixup
 # horovodrun -np 2 python train_ve.py --config config/train-ve-fs-base-2gpu.json \
 #     --output_dir $VE_EXP &
+python train_ve.py --config config/train-ve-base-1gpu.json \
+    --output_dir $VE_EXP 
 
 # few-shot finetune
 # VE_EXP=$EXP/ve_fewshot/seed_5
@@ -55,8 +57,8 @@ VQA_EXP=$EXP/vqa/finetune
 
 # prompt
 VQA_EXP=$EXP/vqa/prompt
-TOKENIZERS_PARALLELISM=true python train_vqa.py --config config/train-vqa-prompt-base-1gpu.json \
-    --output_dir $VQA_EXP
+# TOKENIZERS_PARALLELISM=true python train_vqa.py --config config/train-vqa-prompt-base-1gpu.json \
+#     --output_dir $VQA_EXP
 
 # few-shot finetune
 VQA_DATA_SEED=2

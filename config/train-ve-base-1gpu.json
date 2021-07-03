@@ -14,8 +14,8 @@
     "max_bb": 100,
     "min_bb": 10,
     "num_bb": 36,
-    "train_batch_size": 4096,
-    "val_batch_size": 4096,
+    "train_batch_size": 8192,
+    "val_batch_size": 8192,
     "gradient_accumulation_steps": 4,
     "learning_rate": 8e-05,
     "valid_steps": 500,
@@ -31,6 +31,6 @@
     "warmup_steps": 400,
     "seed": 42,
     "fp16": true,
-    "n_workers": 4,
+    "n_workers": 0,
     "pin_mem": false
 }

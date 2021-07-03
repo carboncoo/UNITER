@@ -14,7 +14,7 @@ from torch.nn import functional as F
 from apex.normalization.fused_layer_norm import FusedLayerNorm as LayerNorm
 
 from .layer import GELU
-from .model import UniterPreTrainedModel, UniterModel, UniterSoftPromptModel, UniterConfig
+from .model import UniterPreTrainedModel, UniterModel, UniterSoftPromptModel, UniterConfig, mixup
 
 
 class UniterForVisualQuestionAnswering(UniterPreTrainedModel):
@@ -39,15 +39,23 @@ class UniterForVisualQuestionAnswering(UniterPreTrainedModel):
         img_pos_feat = batch['img_pos_feat']
         attn_masks = batch['attn_masks']
         gather_index = batch['gather_index']
+
+        mix_indices = torch.randperm(img_feat.shape[0], device='cuda:0') if compute_loss else None
+
         sequence_output = self.uniter(input_ids, position_ids,
                                       img_feat, img_pos_feat,
                                       attn_masks, gather_index,
-                                      output_all_encoded_layers=False)
+                                      output_all_encoded_layers=False,
+                                      mix_indices=mix_indices)
         pooled_output = self.uniter.pooler(sequence_output)
         answer_scores = self.vqa_output(pooled_output)
+        
 
         if compute_loss:
             targets = batch['targets']
+            if mix_indices != None:
+                targets = mixup(targets, mix_indices)
+            # import ipdb; ipdb.set_trace()
             vqa_loss = F.binary_cross_entropy_with_logits(
                 answer_scores, targets, reduction='none')
             return vqa_loss
@@ -86,7 +94,8 @@ class UniterSoftPromptForVisualQuestionAnswering(UniterPreTrainedModel):
         # class_weights = model.uniter_softprompt.uniter.embeddings.word_embeddings.weight[kwargs.get('label_mapping', [0])].clone()
         class_weights = torch.zeros(len(label_mapping), config.hidden_size)
         for i in range(len(label_mapping)):
-            class_weights[i] = torch.mean(model.uniter_softprompt.uniter.embeddings.word_embeddings.weight[label_mapping[i]].clone(), 0)
+            if len(label_mapping[i]) > 0:
+                class_weights[i] = torch.mean(model.uniter_softprompt.uniter.embeddings.word_embeddings.weight[label_mapping[i]].clone(), 0)
             # for label in label_mapping[i]:
                 
                 # class_weights[i] +=  model.uniter_softprompt.uniter.embeddings.word_embeddings.weight[label].clone()
@@ -100,7 +109,8 @@ class UniterSoftPromptForVisualQuestionAnswering(UniterPreTrainedModel):
         # model.uniter_softprompt.cls.predictions.bias = nn.Parameter(model.uniter_softprompt.cls.predictions.bias.data[kwargs.get('label_mapping', [0])].clone())
         bias = torch.zeros(len(label_mapping))
         for i in range(len(label_mapping)):
-            bias[i] = torch.mean(model.uniter_softprompt.cls.predictions.bias.data[label_mapping[i]].clone(), 0)
+            if len(label_mapping[i]) > 0:
+                bias[i] = torch.mean(model.uniter_softprompt.cls.predictions.bias.data[label_mapping[i]].clone(), 0)
             # for label in label_mapping[i]:
             #     bias[i] +=  model.uniter_softprompt.cls.predictions.bias.data[label].clone()
             # bias[i] /= len(label_mapping[i])

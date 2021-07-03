@@ -21,6 +21,12 @@ from .layer import BertLayer, BertPooler, BertOnlyMLMHead
 
 logger = logging.getLogger(__name__)
 
+def mixup(batch, mix_indices, lamb=0.5):
+    mix_input = batch.clone()
+    # import ipdb; ipdb.set_trace()
+    mix_input = lamb*mix_input + (1-lamb)*torch.index_select(batch, 0, mix_indices)
+    return torch.cat((batch, mix_input))
+    
 
 class UniterConfig(object):
     """Configuration class to store the configuration of a `UniterModel`.
@@ -322,22 +328,30 @@ class UniterModel(UniterPreTrainedModel):
     def _compute_img_txt_embeddings(self, input_ids, position_ids,
                                     img_feat, img_pos_feat,
                                     gather_index, img_masks=None,
-                                    txt_type_ids=None, img_type_ids=None):
+                                    txt_type_ids=None, img_type_ids=None,
+                                    mix_indices=None):
         txt_emb = self._compute_txt_embeddings(
             input_ids, position_ids, txt_type_ids)
         img_emb = self._compute_img_embeddings(
             img_feat, img_pos_feat, img_masks, img_type_ids)
+        if mix_indices != None:
+            txt_emb = mixup(txt_emb, mix_indices)
+            img_emb = mixup(img_emb, mix_indices)
+            mix_gather_index = torch.max(gather_index, torch.index_select(gather_index, 0, mix_indices))
+            gather_index = torch.cat((gather_index, mix_gather_index))
         # align back to most compact input
+        
         gather_index = gather_index.unsqueeze(-1).expand(
             -1, -1, self.config.hidden_size)
         embedding_output = torch.gather(torch.cat([txt_emb, img_emb], dim=1),
                                         dim=1, index=gather_index)
+        # import ipdb; ipdb.set_trace()
         return embedding_output
 
     def forward(self, input_ids, position_ids,
                 img_feat, img_pos_feat,
                 attention_mask, gather_index=None, img_masks=None,
-                output_all_encoded_layers=True,
+                output_all_encoded_layers=True, mix_indices=None,
                 txt_type_ids=None, img_type_ids=None):
         # import ipdb; ipdb.set_trace()
         # input_ids: b x max_tl
@@ -348,6 +362,9 @@ class UniterModel(UniterPreTrainedModel):
         # gather_index: b x max_l, img_idxs + txt_idxs
         
         # compute self-attention mask
+        if mix_indices != None:
+            attention_mask = torch.cat((attention_mask, attention_mask))
+            
         extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2) # b x 1 x 1 x max_l
         extended_attention_mask = extended_attention_mask.to(
             dtype=next(self.parameters()).dtype)  # fp16 compatibility
@@ -366,7 +383,8 @@ class UniterModel(UniterPreTrainedModel):
             embedding_output = self._compute_img_txt_embeddings(
                 input_ids, position_ids,
                 img_feat, img_pos_feat,
-                gather_index, img_masks, txt_type_ids, img_type_ids) # b x max_l x d
+                gather_index, img_masks, txt_type_ids, img_type_ids,
+                mix_indices) # b x max_l x d
 
         encoded_layers = self.encoder(
             embedding_output, extended_attention_mask,
