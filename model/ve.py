@@ -15,8 +15,8 @@ from .model import UniterPreTrainedModel, UniterModel, UniterSoftPromptModel, Un
 class UniterForVisualEntailment(UniterForVisualQuestionAnswering):
     """ Finetune UNITER for VE
     """
-    def __init__(self, config, img_dim):
-        super().__init__(config, img_dim, 3)
+    def __init__(self, config, img_dim, mixup):
+        super().__init__(config, img_dim, 3, mixup)
 
 class UniterSoftPromptForVisualEntailment(UniterPreTrainedModel):
     """ Finetune UNITER with soft prompts for VQA

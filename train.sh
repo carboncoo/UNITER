@@ -4,7 +4,7 @@ CKPT=$ROOT/exp/UNITER/pretrained
 EXP=$ROOT/exp/UNITER/finetune
 IMG_DB=/data/share/UNITER/img_db
 TXT_DB=/data/share/UNITER/txt_db
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=0
 
 # train nlvr2
 # CUDA_VISIBLE_DEVICES=5 python train_nlvr2.py --config config/train-softprompt-nlvr2-base-1gpu.json
@@ -17,7 +17,7 @@ VCR_EXP=$EXP/vcr/default
 
 
 # train ve
-VE_EXP=$EXP/ve/mixup
+VE_EXP=$EXP/ve/finetune
 # horovodrun -np 2 python train_ve.py --config config/train-ve-fs-base-2gpu.json \
 #     --output_dir $VE_EXP &
 python train_ve.py --config config/train-ve-base-1gpu.json \

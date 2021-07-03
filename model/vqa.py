@@ -20,7 +20,7 @@ from .model import UniterPreTrainedModel, UniterModel, UniterSoftPromptModel, Un
 class UniterForVisualQuestionAnswering(UniterPreTrainedModel):
     """ Finetune UNITER for VQA
     """
-    def __init__(self, config, img_dim, num_answer):
+    def __init__(self, config, img_dim, num_answer, mixup):
         super().__init__(config)
         self.uniter = UniterModel(config, img_dim)
         self.vqa_output = nn.Sequential(
@@ -30,6 +30,7 @@ class UniterForVisualQuestionAnswering(UniterPreTrainedModel):
             nn.Linear(config.hidden_size*2, num_answer)
         )
         self.apply(self.init_weights)
+        self.mixup = mixup
 
     def forward(self, batch, compute_loss=True):
         batch = defaultdict(lambda: None, batch)
@@ -40,7 +41,7 @@ class UniterForVisualQuestionAnswering(UniterPreTrainedModel):
         attn_masks = batch['attn_masks']
         gather_index = batch['gather_index']
 
-        mix_indices = torch.randperm(img_feat.shape[0], device='cuda:0') if compute_loss else None
+        mix_indices = torch.randperm(img_feat.shape[0], device='cuda:0') if compute_loss and self.mixup else None
 
         sequence_output = self.uniter(input_ids, position_ids,
                                       img_feat, img_pos_feat,

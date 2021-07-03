@@ -112,7 +112,8 @@ def main(opts):
         )
     else:
         model = UniterForVisualEntailment.from_pretrained(
-            opts.model_config, state_dict=checkpoint, img_dim=IMG_DIM
+            opts.model_config, state_dict=checkpoint, img_dim=IMG_DIM,
+            mixup = opts.mixup
         )
     
     model.to(device)
@@ -411,6 +412,10 @@ if __name__ == "__main__":
     # few-shot
     parser.add_argument('--few_shot', type=bool, default=False,
                         help='few-shot dataset')
+
+    # mixup
+    parser.add_argument('--mixup', type=bool, default=False,
+                        help='mixup')
 
     # can use config files
     parser.add_argument('--config', help='JSON config files')
