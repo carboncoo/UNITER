@@ -17,6 +17,9 @@ from .layer import GELU
 from .model import UniterPreTrainedModel, UniterModel, UniterSoftPromptModel, UniterConfig, mixup
 
 
+torch.manual_seed(18)
+torch.cuda.manual_seed(18)
+
 class UniterForVisualQuestionAnswering(UniterPreTrainedModel):
     """ Finetune UNITER for VQA
     """

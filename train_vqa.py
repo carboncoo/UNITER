@@ -152,7 +152,8 @@ def main(opts):
     else:
         model = UniterForVisualQuestionAnswering.from_pretrained(
             opts.model_config, state_dict=checkpoint,
-            img_dim=IMG_DIM, num_answer=len(ans2label))
+            img_dim=IMG_DIM, num_answer=len(ans2label),
+            mixup=opts.mixup)
     model.to(device)
     # make sure every process has same model parameters in the beginning
     broadcast_tensors([p.data for p in model.parameters()], 0)
@@ -405,6 +406,10 @@ if __name__ == "__main__":
     # few-shot
     parser.add_argument('--few_shot', type=bool, default=False,
                         help='few-shot dataset')
+
+    # mixup
+    parser.add_argument('--mixup', type=bool, default=False,
+                        help='mixup')
 
     # can use config files
     parser.add_argument('--config', help='JSON config files')

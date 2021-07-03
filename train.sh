@@ -17,11 +17,11 @@ VCR_EXP=$EXP/vcr/default
 
 
 # train ve
-VE_EXP=$EXP/ve/finetune
+VE_EXP=$EXP/ve/mixup_4k
 # horovodrun -np 2 python train_ve.py --config config/train-ve-fs-base-2gpu.json \
 #     --output_dir $VE_EXP &
-python train_ve.py --config config/train-ve-base-1gpu.json \
-    --output_dir $VE_EXP 
+# python train_ve.py --config config/train-ve-base-1gpu.json \
+#     --output_dir $VE_EXP 
 
 # few-shot finetune
 # VE_EXP=$EXP/ve_fewshot/seed_5
@@ -51,9 +51,9 @@ ZS_ITM_RESULT=$EXP/itr/zs_result
 
 
 # train vqa
-VQA_EXP=$EXP/vqa/finetune
-# python train_vqa.py --config config/train-vqa-base-1gpu.json \
-#     --output_dir $VQA_EXP
+VQA_EXP=$EXP/vqa/mixup
+python train_vqa.py --config config/train-vqa-base-1gpu.json \
+    --output_dir $VQA_EXP
 
 # prompt
 VQA_EXP=$EXP/vqa/prompt

@@ -32,5 +32,6 @@
     "seed": 42,
     "fp16": true,
     "n_workers": 4,
-    "pin_mem": true
+    "pin_mem": true,
+    "mixup": true
 }
