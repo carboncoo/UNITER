@@ -249,8 +249,7 @@ def main(opts):
                     ex_per_sec = int(tot_ex / (time()-start))
                     LOGGER.info(f'{tot_ex} examples trained at '
                                 f'{ex_per_sec} ex/s')
-                    LOGGER.info(f'original loss:{original_loss} '
-                                f'mix loss:{mix_loss}')
+                    LOGGER.info(f"Step {global_step}: original loss={original_loss.item()} mix loss={mix_loss.item()}")
                     TB_LOGGER.add_scalar('perf/ex_per_s',
                                          ex_per_sec, global_step)
                     LOGGER.info(f'===========================================')

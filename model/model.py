@@ -28,8 +28,8 @@ def mixup(batch, mix_indices, lamb=0.5):
     
 def concat(batch, mix_indices):
     mix_input = batch.clone()
-    mix_input = torch.cat((mix_input, torch.index_select(batch, 0, mix_indices)), 1)
-    original_input = torch.cat((batch.clone(), batch.clone()))
+    mix_input = torch.cat((mix_input, torch.index_select(batch, 0, mix_indices)), dim=1)
+    original_input = torch.cat((batch.clone(), batch.clone()), dim=1)
     return original_input, mix_input
     
 
@@ -349,9 +349,11 @@ class UniterModel(UniterPreTrainedModel):
             elif da_type == 'cat':
                 original_txt_emb, mix_txt_emb = concat(txt_emb, mix_indices)
                 original_img_emb, mix_img_emb = concat(img_emb, mix_indices)
+                original_emb = torch.cat((original_txt_emb, original_img_emb), dim=1)
+                mix_emb = torch.cat((mix_txt_emb, mix_img_emb), dim=1)
                 max_len = gather_index.shape[1]
                 original_gather_index = torch.cat((gather_index, gather_index + max_len), dim=1)
-                mix_gather_index = torch.cat(gather_index, torch.index_select(gather_index, 0, mix_indices), dim=1)
+                mix_gather_index = torch.cat((gather_index, torch.index_select(gather_index, 0, mix_indices)), dim=1)
                 gather_index = torch.cat((original_gather_index, mix_gather_index))
         
         # align back to most compact input
@@ -359,7 +361,7 @@ class UniterModel(UniterPreTrainedModel):
         gather_index = gather_index.unsqueeze(-1).expand(
             -1, -1, self.config.hidden_size)
         if da_type == 'cat':
-            embedding_output = torch.gather(torch.cat([txt_emb, img_emb], dim=1),
+            embedding_output = torch.gather(torch.cat((original_emb, mix_emb)),
                                         dim=1, index=gather_index)
         else:
             embedding_output = torch.gather(torch.cat([txt_emb, img_emb], dim=1),
