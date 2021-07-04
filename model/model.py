@@ -28,6 +28,9 @@ def mixup(batch, mix_indices, lamb=0.5):
     
 def concat(batch, mix_indices):
     mix_input = batch.clone()
+    mix_input = torch.cat((mix_input, torch.index_select(batch, 0, mix_indices)), 1)
+    original_input = torch.cat((batch.clone(), batch.clone()))
+    return original_input, mix_input
     
 
 class UniterConfig(object):
@@ -331,22 +334,35 @@ class UniterModel(UniterPreTrainedModel):
                                     img_feat, img_pos_feat,
                                     gather_index, img_masks=None,
                                     txt_type_ids=None, img_type_ids=None,
-                                    mix_indices=None):
+                                    mix_indices=None, da_type=None):
         txt_emb = self._compute_txt_embeddings(
             input_ids, position_ids, txt_type_ids)
         img_emb = self._compute_img_embeddings(
             img_feat, img_pos_feat, img_masks, img_type_ids)
-        # import ipdb; ipdb.set_trace()
+        
         if mix_indices != None:
-            txt_emb = mixup(txt_emb, mix_indices)
-            img_emb = mixup(img_emb, mix_indices)
-            mix_gather_index = torch.max(gather_index, torch.index_select(gather_index, 0, mix_indices))
-            gather_index = torch.cat((gather_index, mix_gather_index))
+            if da_type == 'mixup':
+                txt_emb = mixup(txt_emb, mix_indices)
+                img_emb = mixup(img_emb, mix_indices)
+                mix_gather_index = torch.max(gather_index, torch.index_select(gather_index, 0, mix_indices))
+                gather_index = torch.cat((gather_index, mix_gather_index))
+            elif da_type == 'cat':
+                original_txt_emb, mix_txt_emb = concat(txt_emb, mix_indices)
+                original_img_emb, mix_img_emb = concat(img_emb, mix_indices)
+                max_len = gather_index.shape[1]
+                original_gather_index = torch.cat((gather_index, gather_index + max_len), dim=1)
+                mix_gather_index = torch.cat(gather_index, torch.index_select(gather_index, 0, mix_indices), dim=1)
+                gather_index = torch.cat((original_gather_index, mix_gather_index))
+        
         # align back to most compact input
         
         gather_index = gather_index.unsqueeze(-1).expand(
             -1, -1, self.config.hidden_size)
-        embedding_output = torch.gather(torch.cat([txt_emb, img_emb], dim=1),
+        if da_type == 'cat':
+            embedding_output = torch.gather(torch.cat([txt_emb, img_emb], dim=1),
+                                        dim=1, index=gather_index)
+        else:
+            embedding_output = torch.gather(torch.cat([txt_emb, img_emb], dim=1),
                                         dim=1, index=gather_index)
         # import ipdb; ipdb.set_trace()
         return embedding_output
@@ -355,17 +371,21 @@ class UniterModel(UniterPreTrainedModel):
                 img_feat, img_pos_feat,
                 attention_mask, gather_index=None, img_masks=None,
                 output_all_encoded_layers=True, mix_indices=None,
-                txt_type_ids=None, img_type_ids=None):
+                txt_type_ids=None, img_type_ids=None, da_type=None):
         # input_ids: b x max_tl
         # position_ids: [[0, 1, ..., max_tl-1]]
         # img_feat: b x max_il x 2048
         # img_pos_feat: b x max_il x 7
         # attention_mask: b x max_l with all ones
         # gather_index: b x max_l, img_idxs + txt_idxs
-        
+        # import ipdb; ipdb.set_trace()
         # compute self-attention mask
         if mix_indices != None:
-            attention_mask = torch.cat((attention_mask, attention_mask))
+            if da_type == 'mixup':
+                attention_mask = torch.cat((attention_mask, attention_mask))
+            else:
+                original_mask, mix_mask = concat(attention_mask, mix_indices)
+                attention_mask = torch.cat((original_mask, mix_mask))
             
         extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2) # b x 1 x 1 x max_l
         extended_attention_mask = extended_attention_mask.to(
@@ -386,7 +406,7 @@ class UniterModel(UniterPreTrainedModel):
                 input_ids, position_ids,
                 img_feat, img_pos_feat,
                 gather_index, img_masks, txt_type_ids, img_type_ids,
-                mix_indices) # b x max_l x d
+                mix_indices, da_type) # b x max_l x d
 
         encoded_layers = self.encoder(
             embedding_output, extended_attention_mask,

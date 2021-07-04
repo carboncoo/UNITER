@@ -17,13 +17,11 @@ from .layer import GELU
 from .model import UniterPreTrainedModel, UniterModel, UniterSoftPromptModel, UniterConfig, mixup
 
 
-torch.manual_seed(18)
-torch.cuda.manual_seed(18)
 
 class UniterForVisualQuestionAnswering(UniterPreTrainedModel):
     """ Finetune UNITER for VQA
     """
-    def __init__(self, config, img_dim, num_answer, mixup):
+    def __init__(self, config, img_dim, num_answer, da_type):
         super().__init__(config)
         self.uniter = UniterModel(config, img_dim)
         self.vqa_output = nn.Sequential(
@@ -33,7 +31,7 @@ class UniterForVisualQuestionAnswering(UniterPreTrainedModel):
             nn.Linear(config.hidden_size*2, num_answer)
         )
         self.apply(self.init_weights)
-        self.mixup = mixup
+        self.da_type = da_type
 
     def forward(self, batch, compute_loss=True):
         batch = defaultdict(lambda: None, batch)
@@ -44,13 +42,14 @@ class UniterForVisualQuestionAnswering(UniterPreTrainedModel):
         attn_masks = batch['attn_masks']
         gather_index = batch['gather_index']
 
-        mix_indices = torch.randperm(img_feat.shape[0], device='cuda:0') if compute_loss and self.mixup else None
+        mix_indices = torch.randperm(img_feat.shape[0], device='cuda:0') if compute_loss and self.da_type != None else None
 
         sequence_output = self.uniter(input_ids, position_ids,
                                       img_feat, img_pos_feat,
                                       attn_masks, gather_index,
                                       output_all_encoded_layers=False,
-                                      mix_indices=mix_indices)
+                                      mix_indices=mix_indices,
+                                      da_type=self.da_type)
         pooled_output = self.uniter.pooler(sequence_output)
         answer_scores = self.vqa_output(pooled_output)
         
