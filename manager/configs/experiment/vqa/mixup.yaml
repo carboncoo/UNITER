@@ -1,0 +1,17 @@
+# @package _global_
+defaults:
+  - vqa/ft
+
+configs:
+  output_dir: /data/private/mxy/exp/UNITER/finetune/vqa/mixup
+  learning_rate: 8.0e-05
+  train_batch_size: 10240
+  val_batch_size: 10240
+  num_train_steps: 10000
+  warmup_steps: 600
+  valid_steps: 500
+  da_type: mixup
+
+mlflow:
+  exp_name: mixup-vqa
+  task: mixup-vqa

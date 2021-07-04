@@ -15,7 +15,7 @@ configs:
   learning_rate: 8.0e-5
   num_train_steps: 4000
   warmup_steps: 400
-  mixup: true
+  da_type: cat 
 
 mlflow:
   exp_name: mixup-ve
