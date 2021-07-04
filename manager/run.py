@@ -22,6 +22,7 @@ SCRIPT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'scripts')
 p1 = r'.*Step (\d+): start running validation on (val|test) split...'
 p2 = r'.*score: (0\.\d+|[1-9]\d*\.\d+)'
 p3 = r'.*Step (\d+): loss=(0\.\d+|[1-9]\d*\.\d+)'
+p4 = r'.*Step (\d+): original loss=(0\.\d+|[1-9]\d*\.\d+) mix loss=(0\.\d+|[1-9]\d*\.\d+)'
 
 step = 0
 split = 'val'
@@ -33,6 +34,7 @@ def maybe_log_metrics(textline):
     res1 = re.match(p1, textline)
     res2 = re.match(p2, textline)
     res3 = re.match(p3, textline)
+    res4 = re.match(p4, textline)
     if res1:
         step = int(res1[1])
         split = res1[2]
@@ -40,6 +42,9 @@ def maybe_log_metrics(textline):
         mlflow.log_metric(f'score-{split}', float(res2[1]), step=step)
     if res3:
         mlflow.log_metric(f'train_loss', float(res3[2]), step=int(res3[1]))
+    if res4:
+        mlflow.log_metric(f'original_loss', float(res4[2]), step=int(res4[1]))
+        mlflow.log_metric(f'mix_loss', float(res4[3]), step=int(res4[1]))
 
 #################### Main ####################
 

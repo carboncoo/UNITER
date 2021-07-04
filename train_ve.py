@@ -130,8 +130,8 @@ def main(opts):
     if rank == 0:
         save_training_meta(opts)
         TB_LOGGER.create(join(opts.output_dir, 'log'))
-        # pbar = tqdm(total=opts.num_train_steps)
-        pbar = NoOp()
+        pbar = tqdm(total=opts.num_train_steps)
+        # pbar = NoOp()
         model_saver = ModelSaver(join(opts.output_dir, 'ckpt'))
         pickle.dump(ans2label,
                     open(join(opts.output_dir, 'ckpt', 'ans2label.pkl'), 'wb'))
@@ -161,6 +161,8 @@ def main(opts):
             n_examples += batch['input_ids'].size(0)
 
             loss = model(batch, compute_loss=True)
+            original_loss, mix_loss = torch.chunk(loss, 2)
+            original_loss, mix_loss = original_loss.mean() * batch['targets'].size(1), mix_loss.mean() * batch['targets'].size(1)
             loss = loss.mean() * batch['targets'].size(1)  # instance-leval bce
             delay_unscale = (step+1) % opts.gradient_accumulation_steps != 0
             with amp.scale_loss(loss, optimizer, delay_unscale=delay_unscale
@@ -175,6 +177,7 @@ def main(opts):
                     all_reduce_and_rescale_tensors(grads, float(1))
 
             running_loss(loss.item())
+            # import ipdb; ipdb.set_trace()
 
             if (step + 1) % opts.gradient_accumulation_steps == 0:
                 global_step += 1
@@ -207,6 +210,7 @@ def main(opts):
                     LOGGER.info(f'{tot_ex} examples trained at '
                                 f'{ex_per_sec} ex/s')
                     LOGGER.info(f"Step {global_step}: loss={running_loss.val}")
+                    LOGGER.info(f"Step {global_step}: original loss={original_loss.item()} mix loss={mix_loss.item()}")
                     TB_LOGGER.add_scalar('perf/ex_per_s',
                                          ex_per_sec, global_step)
                     LOGGER.info(f'===========================================')

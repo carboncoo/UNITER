@@ -4,7 +4,7 @@ CKPT=$ROOT/exp/UNITER/pretrained
 EXP=$ROOT/exp/UNITER/finetune
 IMG_DB=/data/share/UNITER/img_db
 TXT_DB=/data/share/UNITER/txt_db
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=1
 
 # train nlvr2
 # CUDA_VISIBLE_DEVICES=5 python train_nlvr2.py --config config/train-softprompt-nlvr2-base-1gpu.json
@@ -17,11 +17,11 @@ VCR_EXP=$EXP/vcr/default
 
 
 # train ve
-VE_EXP=$EXP/ve/mixup_4k
+VE_EXP=$EXP/ve/cat
 # horovodrun -np 2 python train_ve.py --config config/train-ve-fs-base-2gpu.json \
 #     --output_dir $VE_EXP &
-# python train_ve.py --config config/train-ve-base-1gpu.json \
-#     --output_dir $VE_EXP 
+python train_ve.py --config config/train-ve-base-1gpu.json \
+    --output_dir $VE_EXP 
 
 # few-shot finetune
 # VE_EXP=$EXP/ve_fewshot/seed_5
@@ -51,9 +51,9 @@ ZS_ITM_RESULT=$EXP/itr/zs_result
 
 
 # train vqa
-VQA_EXP=$EXP/vqa/mixup
-python train_vqa.py --config config/train-vqa-base-1gpu.json \
-    --output_dir $VQA_EXP
+VQA_EXP=$EXP/vqa/mixup_2
+# python train_vqa.py --config config/train-vqa-base-1gpu.json \
+#     --output_dir $VQA_EXP
 
 # prompt
 VQA_EXP=$EXP/vqa/prompt

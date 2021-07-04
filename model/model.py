@@ -23,9 +23,11 @@ logger = logging.getLogger(__name__)
 
 def mixup(batch, mix_indices, lamb=0.5):
     mix_input = batch.clone()
-    # import ipdb; ipdb.set_trace()
     mix_input = lamb*mix_input + (1-lamb)*torch.index_select(batch, 0, mix_indices)
     return torch.cat((batch, mix_input))
+    
+def concat(batch, mix_indices):
+    mix_input = batch.clone()
     
 
 class UniterConfig(object):
@@ -334,6 +336,7 @@ class UniterModel(UniterPreTrainedModel):
             input_ids, position_ids, txt_type_ids)
         img_emb = self._compute_img_embeddings(
             img_feat, img_pos_feat, img_masks, img_type_ids)
+        # import ipdb; ipdb.set_trace()
         if mix_indices != None:
             txt_emb = mixup(txt_emb, mix_indices)
             img_emb = mixup(img_emb, mix_indices)
@@ -353,7 +356,6 @@ class UniterModel(UniterPreTrainedModel):
                 attention_mask, gather_index=None, img_masks=None,
                 output_all_encoded_layers=True, mix_indices=None,
                 txt_type_ids=None, img_type_ids=None):
-        # import ipdb; ipdb.set_trace()
         # input_ids: b x max_tl
         # position_ids: [[0, 1, ..., max_tl-1]]
         # img_feat: b x max_il x 2048

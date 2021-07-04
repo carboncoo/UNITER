@@ -197,6 +197,8 @@ def main(opts):
             n_examples += batch['input_ids'].size(0)
 
             loss = model(batch, compute_loss=True)
+            original_loss, mix_loss = torch.chunk(loss, 2)
+            original_loss, mix_loss = original_loss.mean() * batch['targets'].size(1), mix_loss.mean() * batch['targets'].size(1)
             loss = loss.mean() * batch['targets'].size(1)  # instance-leval bce
             delay_unscale = (step+1) % opts.gradient_accumulation_steps != 0
             with amp.scale_loss(loss, optimizer, delay_unscale=delay_unscale
@@ -247,6 +249,8 @@ def main(opts):
                     ex_per_sec = int(tot_ex / (time()-start))
                     LOGGER.info(f'{tot_ex} examples trained at '
                                 f'{ex_per_sec} ex/s')
+                    LOGGER.info(f'original loss:{original_loss} '
+                                f'mix loss:{mix_loss}')
                     TB_LOGGER.add_scalar('perf/ex_per_s',
                                          ex_per_sec, global_step)
                     LOGGER.info(f'===========================================')
