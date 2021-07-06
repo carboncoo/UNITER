@@ -17,7 +17,7 @@ VCR_EXP=$EXP/vcr/default
 
 
 # train ve
-VE_EXP=$EXP/ve/cat
+VE_EXP=$EXP/ve/mixup_beta
 # horovodrun -np 2 python train_ve.py --config config/train-ve-fs-base-2gpu.json \
 #     --output_dir $VE_EXP &
 python train_ve.py --config config/train-ve-base-1gpu.json \

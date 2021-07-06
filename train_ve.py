@@ -161,8 +161,9 @@ def main(opts):
             n_examples += batch['input_ids'].size(0)
 
             loss = model(batch, compute_loss=True)
-            original_loss, mix_loss = torch.chunk(loss, 2)
-            original_loss, mix_loss = original_loss.mean() * batch['targets'].size(1), mix_loss.mean() * batch['targets'].size(1)
+            if opts.da_type != None:
+                original_loss, mix_loss = torch.chunk(loss, 2)
+                original_loss, mix_loss = original_loss.mean() * batch['targets'].size(1), mix_loss.mean() * batch['targets'].size(1)
             loss = loss.mean() * batch['targets'].size(1)  # instance-leval bce
             delay_unscale = (step+1) % opts.gradient_accumulation_steps != 0
             with amp.scale_loss(loss, optimizer, delay_unscale=delay_unscale
@@ -210,7 +211,8 @@ def main(opts):
                     LOGGER.info(f'{tot_ex} examples trained at '
                                 f'{ex_per_sec} ex/s')
                     LOGGER.info(f"Step {global_step}: loss={running_loss.val}")
-                    LOGGER.info(f"Step {global_step}: original loss={original_loss.item()} mix loss={mix_loss.item()}")
+                    if opts.da_type != None:
+                        LOGGER.info(f"Step {global_step}: original loss={original_loss.item()} mix loss={mix_loss.item()}")
                     TB_LOGGER.add_scalar('perf/ex_per_s',
                                          ex_per_sec, global_step)
                     LOGGER.info(f'===========================================')

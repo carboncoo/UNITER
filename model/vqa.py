@@ -11,6 +11,7 @@ from collections import defaultdict
 import torch
 from torch import nn
 from torch.nn import functional as F
+from torch.distributions import Beta
 from apex.normalization.fused_layer_norm import FusedLayerNorm as LayerNorm
 
 from .layer import GELU
@@ -32,6 +33,7 @@ class UniterForVisualQuestionAnswering(UniterPreTrainedModel):
         )
         self.apply(self.init_weights)
         self.da_type = da_type
+        self.m = Beta(torch.FloatTensor([2]), torch.FloatTensor([2]))
 
     def forward(self, batch, compute_loss=True):
         batch = defaultdict(lambda: None, batch)
@@ -42,13 +44,17 @@ class UniterForVisualQuestionAnswering(UniterPreTrainedModel):
         attn_masks = batch['attn_masks']
         gather_index = batch['gather_index']
 
-        mix_indices = torch.randperm(img_feat.shape[0], device='cuda:0') if compute_loss and self.da_type != None else None
+        if compute_loss and self.da_type != None:
+            lamb = self.m.sample().data[0]
+            mix_indices = torch.randperm(img_feat.shape[0], device='cuda:0')
+        else:
+            mix_indices = None
 
         sequence_output = self.uniter(input_ids, position_ids,
                                       img_feat, img_pos_feat,
                                       attn_masks, gather_index,
                                       output_all_encoded_layers=False,
-                                      mix_indices=mix_indices,
+                                      mix_indices=mix_indices, lamb=lamb,
                                       da_type=self.da_type)
         pooled_output = self.uniter.pooler(sequence_output)
         answer_scores = self.vqa_output(pooled_output)
@@ -57,7 +63,7 @@ class UniterForVisualQuestionAnswering(UniterPreTrainedModel):
         if compute_loss:
             targets = batch['targets']
             if mix_indices != None:
-                targets = mixup(targets, mix_indices)
+                targets = mixup(targets, mix_indices, lamb)
             # import ipdb; ipdb.set_trace()
             vqa_loss = F.binary_cross_entropy_with_logits(
                 answer_scores, targets, reduction='none')

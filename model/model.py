@@ -334,7 +334,7 @@ class UniterModel(UniterPreTrainedModel):
                                     img_feat, img_pos_feat,
                                     gather_index, img_masks=None,
                                     txt_type_ids=None, img_type_ids=None,
-                                    mix_indices=None, da_type=None):
+                                    mix_indices=None, lamb=0.5, da_type=None):
         txt_emb = self._compute_txt_embeddings(
             input_ids, position_ids, txt_type_ids)
         img_emb = self._compute_img_embeddings(
@@ -342,8 +342,8 @@ class UniterModel(UniterPreTrainedModel):
         
         if mix_indices != None:
             if da_type == 'mixup':
-                txt_emb = mixup(txt_emb, mix_indices)
-                img_emb = mixup(img_emb, mix_indices)
+                txt_emb = mixup(txt_emb, mix_indices, lamb)
+                img_emb = mixup(img_emb, mix_indices, lamb)
                 mix_gather_index = torch.max(gather_index, torch.index_select(gather_index, 0, mix_indices))
                 gather_index = torch.cat((gather_index, mix_gather_index))
             elif da_type == 'cat':
@@ -360,7 +360,7 @@ class UniterModel(UniterPreTrainedModel):
         
         gather_index = gather_index.unsqueeze(-1).expand(
             -1, -1, self.config.hidden_size)
-        if da_type == 'cat':
+        if da_type == 'cat' and mix_indices != None:
             embedding_output = torch.gather(torch.cat((original_emb, mix_emb)),
                                         dim=1, index=gather_index)
         else:
@@ -372,7 +372,7 @@ class UniterModel(UniterPreTrainedModel):
     def forward(self, input_ids, position_ids,
                 img_feat, img_pos_feat,
                 attention_mask, gather_index=None, img_masks=None,
-                output_all_encoded_layers=True, mix_indices=None,
+                output_all_encoded_layers=True, mix_indices=None, lamb=0.5,
                 txt_type_ids=None, img_type_ids=None, da_type=None):
         # input_ids: b x max_tl
         # position_ids: [[0, 1, ..., max_tl-1]]
@@ -385,6 +385,7 @@ class UniterModel(UniterPreTrainedModel):
         if mix_indices != None:
             if da_type == 'mixup':
                 attention_mask = torch.cat((attention_mask, attention_mask))
+                #TODO: position 
             else:
                 original_mask, mix_mask = concat(attention_mask, mix_indices)
                 attention_mask = torch.cat((original_mask, mix_mask))
@@ -408,7 +409,7 @@ class UniterModel(UniterPreTrainedModel):
                 input_ids, position_ids,
                 img_feat, img_pos_feat,
                 gather_index, img_masks, txt_type_ids, img_type_ids,
-                mix_indices, da_type) # b x max_l x d
+                mix_indices, lamb, da_type) # b x max_l x d
 
         encoded_layers = self.encoder(
             embedding_output, extended_attention_mask,
