@@ -48,6 +48,7 @@ class UniterForVisualQuestionAnswering(UniterPreTrainedModel):
             lamb = self.m.sample().data[0]
             mix_indices = torch.randperm(img_feat.shape[0], device='cuda:0')
         else:
+            lamb = None
             mix_indices = None
 
         sequence_output = self.uniter(input_ids, position_ids,
