@@ -16,7 +16,9 @@ msgpack_numpy.patch()
 
 seeds = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
 num_of_sample = 10
-db_dir = "/data/share/UNITER/vqa/txt_db/vqa_train.db"
+img_dir = "/data/share/UNITER/nlvr2/img_db/nlvr2_dev/feat_th0.2_max100_min10"
+# db_dir = "/data/share/UNITER/vqa/txt_db/vqa_train.db"
+db_dir = "/data/share/UNITER/nlvr2/txt_db/nlvr2_train.db"
 # db_dir2 = "/data/share/UNITER/vqa/txt_db/vqa_trainval.db"
 # db_dir3 = "/data/share/UNITER/vqa/txt_db/vqa_vg.db"
 output_db_dir = "/data/share/UNITER/vqa_fewshot/txt_db/vqa_train.db"
@@ -101,28 +103,29 @@ def vqa():
 
     meta = json.load(open(db_dir + '/meta.json'))
     id2len = json.load(open(db_dir + '/id2len.json'))
-    img2txts = json.load(open(db_dir + '/img2txts.json'))
+    # img2txts = json.load(open(db_dir + '/img2txts.json'))
     txt2img = json.load(open(db_dir + '/txt2img.json'))
-    ans2label = json.load(open(f'{dirname(abspath(__file__))}'
-                               f'/utils/ans2label.json'))
+    # ans2label = json.load(open(f'{dirname(abspath(__file__))}'
+    #                            f'/utils/ans2label.json'))
     # ans2label = pickle.load(open(db_dir + '/ans2label.pkl'))
     print(len(id2len))
-    print(len(img2txts))
+    # print(len(img2txts))
     print(len(txt2img))
-    print(len(ans2label))
+    # print(len(ans2label))
 
-    label2ans = {v:k for k,v in ans2label.items()}
+    # label2ans = {v:k for k,v in ans2label.items()}
 
     # statistic
     # answer_cnt = {ans: 0 for ans in ans2label.keys()}
 
-    # for v in db.values():
-    #     item = msgpack.loads(decompress(v), raw=False)
-    #     answers = item['answers']
-    #     target = item['target']
-    #     # print(target)
-    #     for label in target['labels']:
-    #         answer_cnt[label2ans[label]] += 1
+    for v in db.values():
+        item = msgpack.loads(decompress(v), raw=False)
+        import ipdb; ipdb.set_trace()
+        # answers = item['answers']
+        # target = item['target']
+        # print(target)
+        # for label in target['labels']:
+        #     answer_cnt[label2ans[label]] += 1
             
     # answer_cnt = json.load(open(f'{dirname(abspath(__file__))}'
     #                            f'/utils/ans_cnt.json'))
