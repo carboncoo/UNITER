@@ -211,25 +211,25 @@ def ve():
     # write to db
     img_dir_out = "/data/share/UNITER/ve/da/seed%d/img_db/flickr30k/feat_th0.2_max100_min10"%(seed)
     txt_dir_out = "/data/share/UNITER/ve/da/seed%d/txt_db/ve_train.db"%(seed)
-    if not exists(img_dir_out):
-        os.makedirs(img_dir_out)
-    else:
-        raise ValueError('Found existing DB. Please explicitly remove '
-                        'for re-processing')
-    if not exists(txt_dir_out):
-        os.makedirs(txt_dir_out)
-    else:
-        raise ValueError('Found existing DB. Please explicitly remove '
-                        'for re-processing')
+    # if not exists(img_dir_out):
+    #     os.makedirs(img_dir_out)
+    # else:
+    #     raise ValueError('Found existing DB. Please explicitly remove '
+    #                     'for re-processing')
+    # if not exists(txt_dir_out):
+    #     os.makedirs(txt_dir_out)
+    # else:
+    #     raise ValueError('Found existing DB. Please explicitly remove '
+    #                     'for re-processing')
 
     txt2img_out = {}
     img2txt_out = {}
     nbb_out = {}
 
-    txt_env_out = lmdb.open(txt_dir_out, map_size=int(2e11))
-    txt_txn_out = txt_env_out.begin(write=True)
-    img_env_out = lmdb.open(img_dir_out, map_size=int(2e11))
-    img_txn_out = img_env_out.begin(write=True)
+    # txt_env_out = lmdb.open(txt_dir_out, map_size=int(2e11))
+    # txt_txn_out = txt_env_out.begin(write=True)
+    # img_env_out = lmdb.open(img_dir_out, map_size=int(2e11))
+    # img_txn_out = img_env_out.begin(write=True)
 
     sample_cnt = 0
     txt_keys = list(txt_db.keys())
@@ -241,10 +241,10 @@ def ve():
             k_sample = random.sample(txt_keys, 1)
         
         mix_txt_item, mix_img_item = cutmix(v, txt_db[k_sample], img_txn_in, emb_weight, labels_emb, sample_cnt)
-        mix_txt_key = (str(sample_cnt) + '_').encode('utf-8') + k
-        mix_img_key = mix_txt_item['img_fname'].encode('utf-8')
-        txt_txn_out.put(mix_txt_key, compress(msgpack.dumps(mix_txt_item, use_bin_type=True)))
-        img_txn_out.put(mix_img_key, msgpack.dumps(mix_img_item, use_bin_type=True))
+        mix_txt_key = str(sample_cnt) + '_' + k.decode('utf-8')
+        mix_img_key = mix_txt_item['img_fname']
+        # txt_txn_out.put(mix_txt_key.encode('utf-8'), compress(msgpack.dumps(mix_txt_item, use_bin_type=True)))
+        # img_txn_out.put(mix_img_key.encode('utf-8'), msgpack.dumps(mix_img_item, use_bin_type=True))
         
         txt2img_out[mix_txt_key] = mix_img_key
         if mix_img_key in img2txt_out:
@@ -256,24 +256,24 @@ def ve():
 
         if sample_cnt % 1000 == 0:
             print("Sampled ", sample_cnt)
-            txt_txn_out.commit()
-            txt_txn_out = txt_env_out.begin(write=True)
-            img_txn_out.commit()
-            img_txn_out = img_env_out.begin(write=True)
+            # txt_txn_out.commit()
+            # txt_txn_out = txt_env_out.begin(write=True)
+            # img_txn_out.commit()
+            # img_txn_out = img_env_out.begin(write=True)
         sample_cnt += 1
 
     print('Mixed %d pairs'%sample_cnt)
-    img_env_in.close()
-    txt_txn_out.commit()
-    txt_env_out.close()
-    img_txn_out.commit()
-    img_env_out.close()
+    # img_env_in.close()
+    # txt_txn_out.commit()
+    # txt_env_out.close()
+    # img_txn_out.commit()
+    # img_env_out.close()
 
     json.dump(meta, open(txt_dir_out + '/meta.json', 'w'))
     json.dump(id2len, open(txt_dir_out + '/id2len.json', 'w'))
     json.dump(txt2img_out, open(txt_dir_out + '/txt2img.json', 'w'))
     json.dump(img2txt_out, open(txt_dir_out + '/img2txts.json', 'w'))
-    json.dump(nbb_out, open('/data/share/UNITER/ve/da/seed%d/img_db/flickr30k/nbb_th0.2_max100_min10.json', 'w'))
+    json.dump(nbb_out, open('/data/share/UNITER/ve/da/seed%d/img_db/flickr30k/nbb_th0.2_max100_min10.json'%(seed), 'w'))
     
 
 if __name__ == "__main__":
