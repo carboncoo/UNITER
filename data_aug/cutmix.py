@@ -256,6 +256,10 @@ def ve():
 
         if sample_cnt % 1000 == 0:
             print("Sampled ", sample_cnt)
+            txt_txn_out.commit()
+            txt_txn_out = txt_env_out.begin(write=True)
+            img_txn_out.commit()
+            img_txn_out = img_env_out.begin(write=True)
         sample_cnt += 1
 
     print('Mixed %d pairs'%sample_cnt)
