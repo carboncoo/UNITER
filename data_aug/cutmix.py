@@ -244,7 +244,7 @@ def ve():
         mix_txt_key = (str(sample_cnt) + '_').encode('utf-8') + k
         mix_img_key = mix_txt_item['img_fname'].encode('utf-8')
         txt_txn_out.put(mix_txt_key, compress(msgpack.dumps(mix_txt_item, use_bin_type=True)))
-        img_txn_out.put(mix_img_key, compress(msgpack.dumps(mix_img_item, use_bin_type=True)))
+        img_txn_out.put(mix_img_key, msgpack.dumps(mix_img_item, use_bin_type=True))
         
         txt2img_out[mix_txt_key] = mix_img_key
         if mix_img_key in img2txt_out:
@@ -265,11 +265,11 @@ def ve():
     img_txn_out.commit()
     img_env_out.close()
 
-    json.dump(open(txt_dir_out + '/meta.json', 'w'), meta)
-    json.dump(open(txt_dir_out + '/id2len.json', 'w'), id2len)
-    json.dump(open(txt_dir_out + '/txt2img.json', 'w'), txt2img_out)
-    json.dump(open(txt_dir_out + '/img2txts.json', 'w'), img2txt_out)
-    json.dump(open(img_dir_out + '/nbb_th0.2_max100_min10.json', 'w'), nbb_out)
+    json.dump(meta, open(txt_dir_out + '/meta.json', 'w'))
+    json.dump(id2len, open(txt_dir_out + '/id2len.json', 'w'))
+    json.dump(txt2img_out, open(txt_dir_out + '/txt2img.json', 'w'))
+    json.dump(img2txt_out, open(txt_dir_out + '/img2txts.json', 'w'))
+    json.dump(nbb_out, open('/data/share/UNITER/ve/da/seed%d/img_db/flickr30k/nbb_th0.2_max100_min10.json', 'w'))
     
 
 if __name__ == "__main__":
