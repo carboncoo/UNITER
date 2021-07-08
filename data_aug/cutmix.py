@@ -222,6 +222,7 @@ def ve():
     #     raise ValueError('Found existing DB. Please explicitly remove '
     #                     'for re-processing')
 
+    id2len_out = {}
     txt2img_out = {}
     img2txt_out = {}
     nbb_out = {}
@@ -246,12 +247,13 @@ def ve():
         # txt_txn_out.put(mix_txt_key.encode('utf-8'), compress(msgpack.dumps(mix_txt_item, use_bin_type=True)))
         # img_txn_out.put(mix_img_key.encode('utf-8'), msgpack.dumps(mix_img_item, use_bin_type=True))
         
-        txt2img_out[mix_txt_key] = mix_img_key
-        if mix_img_key in img2txt_out:
-            img2txt_out[mix_img_key].append(mix_txt_key)
-        else:
-            img2txt_out[mix_img_key] = [mix_txt_key]
-        nbb_out[mix_img_key] = mix_img_item['conf'].shape[0]
+        # txt2img_out[mix_txt_key] = mix_img_key
+        # if mix_img_key in img2txt_out:
+        #     img2txt_out[mix_img_key].append(mix_txt_key)
+        # else:
+        #     img2txt_out[mix_img_key] = [mix_txt_key]
+        # nbb_out[mix_img_key] = mix_img_item['conf'].shape[0]
+        id2len_out[mix_txt_key] = id2len[k.decode('utf-8')]
         # import ipdb; ipdb.set_trace()
 
         if sample_cnt % 1000 == 0:
@@ -270,10 +272,10 @@ def ve():
     # img_env_out.close()
 
     json.dump(meta, open(txt_dir_out + '/meta.json', 'w'))
-    json.dump(id2len, open(txt_dir_out + '/id2len.json', 'w'))
-    json.dump(txt2img_out, open(txt_dir_out + '/txt2img.json', 'w'))
-    json.dump(img2txt_out, open(txt_dir_out + '/img2txts.json', 'w'))
-    json.dump(nbb_out, open('/data/share/UNITER/ve/da/seed%d/img_db/flickr30k/nbb_th0.2_max100_min10.json'%(seed), 'w'))
+    json.dump(id2len_out, open(txt_dir_out + '/id2len.json', 'w'))
+    # json.dump(txt2img_out, open(txt_dir_out + '/txt2img.json', 'w'))
+    # json.dump(img2txt_out, open(txt_dir_out + '/img2txts.json', 'w'))
+    # json.dump(nbb_out, open('/data/share/UNITER/ve/da/seed%d/img_db/flickr30k/nbb_th0.2_max100_min10.json'%(seed), 'w'))
     
 
 if __name__ == "__main__":
