@@ -23,8 +23,8 @@ from horovod import torch as hvd
 from tqdm import tqdm
 
 from data import (TokenBucketSampler, PrefetchLoader, FewShotSampler,
-                  DetectFeatLmdb, TxtTokLmdb,
-                  VeDataset, VeEvalDataset,
+                  DetectFeatLmdb, TxtTokLmdb, ConcatDatasetWithLens,
+                  VeDataset, VeEvalDataset, ImageLmdbGroup,
                   ve_collate, ve_eval_collate)
 from model.ve import UniterForVisualEntailment, UniterSoftPromptForVisualEntailment
 from optim import get_lr_sched
@@ -39,6 +39,16 @@ from utils.misc import VE_ENT2IDX as ans2label
 from utils.misc import VE_IDX2ENT as label2ans
 from utils.const import IMG_DIM, BUCKET_SIZE
 
+def build_dataloader(dataset, collate_fn, is_train, opts):
+    batch_size = (opts.train_batch_size if is_train
+                  else opts.val_batch_size)
+    sampler = TokenBucketSampler(dataset.lens, bucket_size=BUCKET_SIZE,
+                                 batch_size=batch_size, droplast=is_train)
+    dataloader = DataLoader(dataset, batch_sampler=sampler,
+                            num_workers=opts.n_workers,
+                            pin_memory=opts.pin_mem, collate_fn=collate_fn)
+    dataloader = PrefetchLoader(dataloader)
+    return dataloader
 
 def create_dataloader(img_path, txt_path, batch_size, is_train,
                       dset_cls, collate_fn, opts):
@@ -76,12 +86,24 @@ def main(opts):
 
     set_random_seed(opts.seed)
 
+    # load DBs and image dirs
+    all_img_dbs = ImageLmdbGroup(opts.conf_th, opts.max_bb, opts.min_bb,
+                                 opts.num_bb, opts.compressed_db)
+
     # train_examples = None
     LOGGER.info(f"Loading Train Dataset {opts.train_txt_db}, "
                 f"{opts.train_img_db}")
-    train_dataloader = create_dataloader(opts.train_img_db, opts.train_txt_db,
-                                         opts.train_batch_size, True,
-                                         VeDataset, ve_collate, opts)
+    # train_dataloader = create_dataloader(opts.train_img_db, opts.train_txt_db,
+    #                                      opts.train_batch_size, True,
+    #                                      VeDataset, ve_collate, opts)
+    train_datasets = []
+    for txt_path, img_path in zip(opts.train_txt_dbs, opts.train_img_dbs):
+        img_db = all_img_dbs[img_path]
+        txt_db = TxtTokLmdb(txt_path, opts.max_txt_len)
+        train_datasets.append(VeDataset(txt_db, img_db))
+    train_dataset = ConcatDatasetWithLens(train_datasets)
+    train_dataloader = build_dataloader(train_dataset, ve_collate, True, opts)
+
     val_dataloader = create_dataloader(opts.val_img_db, opts.val_txt_db,
                                        opts.val_batch_size, False,
                                        VeEvalDataset, ve_eval_collate, opts)
