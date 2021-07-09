@@ -54,7 +54,7 @@ def cutmix(txt1, txt2, img_txn, emb_weight, labels_emb, cnt):
     
     mix_txt_item['input_ids'][max_idx1[0]] = txt_item2['input_ids'][max_idx2[0]]
     mix_img_item = {'features': img_item1['features'].copy(),
-                    'norm_bb': img_item1['features'].copy(),
+                    'norm_bb': img_item1['norm_bb'].copy(),
                     'conf': img_item1['conf'].copy(),
                     'soft_labels': img_item1['soft_labels'].copy()}
     # import ipdb; ipdb.set_trace()
@@ -211,26 +211,26 @@ def ve():
     # write to db
     img_dir_out = "/data/share/UNITER/ve/da/seed%d/img_db/flickr30k/feat_th0.2_max100_min10"%(seed)
     txt_dir_out = "/data/share/UNITER/ve/da/seed%d/txt_db/ve_train.db"%(seed)
-    # if not exists(img_dir_out):
-    #     os.makedirs(img_dir_out)
-    # else:
-    #     raise ValueError('Found existing DB. Please explicitly remove '
-    #                     'for re-processing')
-    # if not exists(txt_dir_out):
-    #     os.makedirs(txt_dir_out)
-    # else:
-    #     raise ValueError('Found existing DB. Please explicitly remove '
-    #                     'for re-processing')
+    if not exists(img_dir_out):
+        os.makedirs(img_dir_out)
+    else:
+        raise ValueError('Found existing DB. Please explicitly remove '
+                        'for re-processing')
+    if not exists(txt_dir_out):
+        os.makedirs(txt_dir_out)
+    else:
+        raise ValueError('Found existing DB. Please explicitly remove '
+                        'for re-processing')
 
     id2len_out = {}
     txt2img_out = {}
     img2txt_out = {}
     nbb_out = {}
 
-    # txt_env_out = lmdb.open(txt_dir_out, map_size=int(2e11))
-    # txt_txn_out = txt_env_out.begin(write=True)
-    # img_env_out = lmdb.open(img_dir_out, map_size=int(2e11))
-    # img_txn_out = img_env_out.begin(write=True)
+    txt_env_out = lmdb.open(txt_dir_out, map_size=int(2e11))
+    txt_txn_out = txt_env_out.begin(write=True)
+    img_env_out = lmdb.open(img_dir_out, map_size=int(2e11))
+    img_txn_out = img_env_out.begin(write=True)
 
     sample_cnt = 0
     txt_keys = list(txt_db.keys())
@@ -244,38 +244,38 @@ def ve():
         mix_txt_item, mix_img_item = cutmix(v, txt_db[k_sample], img_txn_in, emb_weight, labels_emb, sample_cnt)
         mix_txt_key = str(sample_cnt) + '_' + k.decode('utf-8')
         mix_img_key = mix_txt_item['img_fname']
-        # txt_txn_out.put(mix_txt_key.encode('utf-8'), compress(msgpack.dumps(mix_txt_item, use_bin_type=True)))
-        # img_txn_out.put(mix_img_key.encode('utf-8'), msgpack.dumps(mix_img_item, use_bin_type=True))
+        txt_txn_out.put(mix_txt_key.encode('utf-8'), compress(msgpack.dumps(mix_txt_item, use_bin_type=True)))
+        img_txn_out.put(mix_img_key.encode('utf-8'), msgpack.dumps(mix_img_item, use_bin_type=True))
         
-        # txt2img_out[mix_txt_key] = mix_img_key
-        # if mix_img_key in img2txt_out:
-        #     img2txt_out[mix_img_key].append(mix_txt_key)
-        # else:
-        #     img2txt_out[mix_img_key] = [mix_txt_key]
-        # nbb_out[mix_img_key] = mix_img_item['conf'].shape[0]
+        txt2img_out[mix_txt_key] = mix_img_key
+        if mix_img_key in img2txt_out:
+            img2txt_out[mix_img_key].append(mix_txt_key)
+        else:
+            img2txt_out[mix_img_key] = [mix_txt_key]
+        nbb_out[mix_img_key] = mix_img_item['conf'].shape[0]
         id2len_out[mix_txt_key] = id2len[k.decode('utf-8')]
         # import ipdb; ipdb.set_trace()
 
         if sample_cnt % 1000 == 0:
             print("Sampled ", sample_cnt)
-            # txt_txn_out.commit()
-            # txt_txn_out = txt_env_out.begin(write=True)
-            # img_txn_out.commit()
-            # img_txn_out = img_env_out.begin(write=True)
+            txt_txn_out.commit()
+            txt_txn_out = txt_env_out.begin(write=True)
+            img_txn_out.commit()
+            img_txn_out = img_env_out.begin(write=True)
         sample_cnt += 1
 
     print('Mixed %d pairs'%sample_cnt)
-    # img_env_in.close()
-    # txt_txn_out.commit()
-    # txt_env_out.close()
-    # img_txn_out.commit()
-    # img_env_out.close()
+    img_env_in.close()
+    txt_txn_out.commit()
+    txt_env_out.close()
+    img_txn_out.commit()
+    img_env_out.close()
 
     json.dump(meta, open(txt_dir_out + '/meta.json', 'w'))
     json.dump(id2len_out, open(txt_dir_out + '/id2len.json', 'w'))
-    # json.dump(txt2img_out, open(txt_dir_out + '/txt2img.json', 'w'))
-    # json.dump(img2txt_out, open(txt_dir_out + '/img2txts.json', 'w'))
-    # json.dump(nbb_out, open('/data/share/UNITER/ve/da/seed%d/img_db/flickr30k/nbb_th0.2_max100_min10.json'%(seed), 'w'))
+    json.dump(txt2img_out, open(txt_dir_out + '/txt2img.json', 'w'))
+    json.dump(img2txt_out, open(txt_dir_out + '/img2txts.json', 'w'))
+    json.dump(nbb_out, open('/data/share/UNITER/ve/da/seed%d/img_db/flickr30k/nbb_th0.2_max100_min10.json'%(seed), 'w'))
     
 
 if __name__ == "__main__":

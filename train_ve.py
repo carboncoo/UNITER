@@ -91,7 +91,7 @@ def main(opts):
                                  opts.num_bb, opts.compressed_db)
 
     # train_examples = None
-    LOGGER.info(f"Loading Train Dataset {opts.train_txt_db}, "
+    LOGGER.info(f"Loading Train Dataset {opts.train_txt_dbs}, "
                 f"{opts.train_img_db}")
     # train_dataloader = create_dataloader(opts.train_img_db, opts.train_txt_db,
     #                                      opts.train_batch_size, True,
@@ -116,7 +116,7 @@ def main(opts):
         checkpoint = torch.load(opts.checkpoint)
     else:
         checkpoint = {}
-    bert_model = json.load(open(f'{opts.train_txt_db}/meta.json'))['bert']
+    bert_model = json.load(open(f'{opts.train_txt_dbs[0]}/meta.json'))['bert']
     if 'bert' not in bert_model:
         bert_model = 'bert-large-cased'  # quick hack for glove exp
         
