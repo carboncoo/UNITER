@@ -1,8 +1,8 @@
 {
     "train_txt_dbs": ["/data/share/UNITER/ve/txt_db/ve_train.db",
-                     "/data/share/UNITER/ve/da/seed2/txt_db/ve_train.db"],
+                     "/data/share/UNITER/ve/da/seed3/txt_db/ve_train.db"],
     "train_img_dbs": ["/data/share/UNITER/ve/img_db/flickr30k",
-                     "/data/share/UNITER/ve/da/seed2/img_db/flickr30k"],
+                     "/data/share/UNITER/ve/img_db/flickr30k"],
     "val_txt_db": "/data/share/UNITER/ve/txt_db/ve_dev.db",
     "val_img_db": "/data/share/UNITER/ve/img_db/flickr30k",
     "test_txt_db": "/data/share/UNITER/ve/txt_db/ve_test.db",

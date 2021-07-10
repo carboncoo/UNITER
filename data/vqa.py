@@ -34,6 +34,12 @@ class VqaDataset(DetectFeatTxtTokDataset):
         input_ids = example['input_ids']
         input_ids = self.txt_db.combine_inputs(input_ids)
 
+        # cutmix
+        if 'mix_index' in example:
+            mix_index = example['mix_index']
+            img_feat[mix_index].data = torch.from_numpy(example['mix_feature'])
+            # import ipdb; ipdb.set_trace()
+
         target = _get_vqa_target(example, self.num_answers)
 
         attn_masks = torch.ones(len(input_ids) + num_bb, dtype=torch.long)

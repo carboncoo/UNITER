@@ -72,19 +72,23 @@ def load_single_img(txn, file_name, compress=False):
         img_dump = msgpack.loads(dump, raw=False)
     return img_dump
 
-def draw_bounding_box(img_name, img_bb):
+def get_concat_h(im1, im2):
+    dst = Image.new('RGB', (im1.width + im2.width, im1.height))
+    dst.paste(im1, (0, 0))
+    dst.paste(im2, (im1.width, 0))
+    return dst
+
+def draw_bounding_box(img_name, img_bb, outline=(0, 0, 0, 255)):
     source_img = Image.open(origin_img_dir + img_name).convert("RGB")
     width, height = source_img.size
 
     draw = ImageDraw.Draw(source_img, 'RGBA')
     p1 = (width*img_bb[0], height*img_bb[1])
     p2 = (width*img_bb[2], height*img_bb[3])
-    # draw.rectangle((p1, p2), fill=(200, 100, 0, 127))
-    draw.rectangle((p1, p2), outline=(0, 0, 0, 127), width=2)
-    # draw.rectangle((, ), fill="black")
+    draw.rectangle((p1, p2), outline=outline, width=2)
     # draw.text((img_bb[0], img_bb[1]), "something123", font=ImageFont.truetype("font_path123"))
-
-    source_img.save('bb_' + img_name, "JPEG")
+    return source_img
+    # source_img.save('bb_' + img_name, "JPEG")
 
 def main():
     NUM_LABELS = 1600
@@ -122,7 +126,7 @@ def main():
 
     txt_db_old = load_txt_db('/data/share/UNITER/ve/txt_db/ve_train.db')
     txt_db_new = load_txt_db(
-        '/data/share/UNITER/ve/da/seed3/txt_db/ve_train.db')
+        '/data/share/UNITER/ve/da/seed2/txt_db/ve_train.db')
     name2nbb, img_db_txn = load_img_db('/data/share/UNITER/ve/img_db/flickr30k')
 
     def display(k):
@@ -132,20 +136,23 @@ def main():
         # input_2 = tokenizer.convert_ids_to_tokens(d2['input_ids'])
         input_1 = convert_ids_to_tokens(d1['input_ids'])
         input_2 = convert_ids_to_tokens(d2['input_ids'])
+        input_3 = convert_ids_to_tokens(d2['mix_input_ids'])
 
         hard_labels = get_hard_labels(d2['mix_soft_labels'])
 
         # img1 = load_single_img(img_db_txn, d1['img_fname'])
-        img2 = load_single_img(img_db_txn, d2['img_fname'])
+        img = load_single_img(img_db_txn, d2['img_fname'])
         origin_img_name = str(k).split('_')[1].split('#')[0]
-        draw_bounding_box(origin_img_name, img2['norm_bb'][d2['mix_index']])
-        # print(img2['norm_bb'][d2['mix_index']])
+        im1 = draw_bounding_box(origin_img_name, img['norm_bb'][d2['mix_index']])
+        im2 = draw_bounding_box(d2['mix_img_flk_id'], d2['mix_bb'], (200, 0, 0, 255))
+        cat_im = get_concat_h(im1, im2)
+        cat_im.save('bb_' + origin_img_name + '_' + d2['mix_img_flk_id'], 'JPEG')
 
-        return input_1, input_2, hard_labels
+        return input_1, input_2, input_3, hard_labels
 
     # print(list(txt_db_new.keys())[:10])
     pp.pprint(display(list(txt_db_new.keys())[0]))
-    pp.pprint(display(list(txt_db_new.keys())[1]))
+    # pp.pprint(display(list(txt_db_new.keys())[1]))
     # pp.pprint(display(list(txt_db_new.keys())[2]))
 
 
