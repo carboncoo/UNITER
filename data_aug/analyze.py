@@ -90,6 +90,16 @@ def draw_bounding_box(img_name, img_bb, outline=(0, 0, 0, 255)):
     return source_img
     # source_img.save('bb_' + img_name, "JPEG")
 
+def crop_bb(img_name, img_bbs):
+    source_img = Image.open(origin_img_dir + img_name).convert("RGB")
+    width, height = source_img.size
+
+    for i in range(img_bbs.shape[0]):
+        p1 = (width*img_bbs[i][0], height*img_bbs[i][1])
+        p2 = (width*img_bbs[i][2], height*img_bbs[i][3])
+        crop = source_img.crop((p1[0], p1[1], p2[0], p2[1]))
+        crop.save('crop_%d.jpg'%(i), 'JPEG')
+
 def main():
     NUM_LABELS = 1600
     # tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
@@ -126,13 +136,13 @@ def main():
 
     txt_db_old = load_txt_db('/data/share/UNITER/ve/txt_db/ve_train.db')
     txt_db_new = load_txt_db(
-        '/data/share/UNITER/ve/da/seed2/txt_db/ve_train.db')
+        '/data/share/UNITER/ve/da/GloVe/seed2/txt_db/ve_train.db')
     name2nbb, img_db_txn = load_img_db('/data/share/UNITER/ve/img_db/flickr30k')
 
     def display(k):
         d1 = msgpack.loads(decompress(txt_db_old[k.split(b'_')[1]]), raw=False)
         d2 = msgpack.loads(decompress(txt_db_new[k]), raw=False)
-        # input_1 = tokenizer.convert_ids_to_tokens(d1['input_ids'])
+        # input_1 = tokenizer.convet_ids_to_tokens(d1['input_ids'])
         # input_2 = tokenizer.convert_ids_to_tokens(d2['input_ids'])
         input_1 = convert_ids_to_tokens(d1['input_ids'])
         input_2 = convert_ids_to_tokens(d2['input_ids'])
@@ -147,11 +157,12 @@ def main():
         im2 = draw_bounding_box(d2['mix_img_flk_id'], d2['mix_bb'], (200, 0, 0, 255))
         cat_im = get_concat_h(im1, im2)
         cat_im.save('bb_' + origin_img_name + '_' + d2['mix_img_flk_id'], 'JPEG')
+        # crop_bb(origin_img_name, img['norm_bb'])
 
         return input_1, input_2, input_3, hard_labels
 
     # print(list(txt_db_new.keys())[:10])
-    pp.pprint(display(list(txt_db_new.keys())[0]))
+    pp.pprint(display(list(txt_db_new.keys())[3]))
     # pp.pprint(display(list(txt_db_new.keys())[1]))
     # pp.pprint(display(list(txt_db_new.keys())[2]))
 
