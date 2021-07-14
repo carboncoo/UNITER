@@ -6,8 +6,10 @@ defaults:
 configs:
   train_img_dbs: 
   - /data/share/UNITER/ve/img_db/flickr30k
+  - /data/share/UNITER/ve/img_db/flickr30k
   train_txt_dbs: 
   - /data/share/UNITER/ve/txt_db/ve_train.db
+  - /data/share/UNITER/ve/da/simsub-seed42/txt_db/ve_train.db
   val_img_db: /data/share/UNITER/ve/img_db/flickr30k
   val_txt_db: /data/share/UNITER/ve/txt_db/ve_dev.db
   test_img_db: /data/share/UNITER/ve/img_db/flickr30k

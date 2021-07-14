@@ -10,7 +10,7 @@ configs:
   valid_steps: 500
 
 scripts:
-  train_py: /data/private/mxy/code/cc-UNITER/train_vqa.py
+  train_py: ${paths.code_dir}/train_vqa.py
 
 mlflow:
   exp_name: finetune-vqa

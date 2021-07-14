@@ -1,21 +1,23 @@
 defaults:
   - optional data: default
   - optional training: default
+  - optional paths: cc
 
 scripts:
-  train_sh: /data/private/cc/experiment/MMP/UNITER/manager/scripts/train.sh
-  train_py: /data/private/cc/experiment/MMP/UNITER/train_ve.py
+  train_sh: ${paths.code_dir}/manager/scripts/train.sh
+  train_py: ${paths.code_dir}/train_ve.py
 
 mlflow:
   exp_name: finetune
-  output_dir: /data/private/mxy/exp/UNITER/finetune
-  code_dirs: ['/data/private/mxy/code/cc-UNITER/data', 
-              '/data/private/mxy/code/cc-UNITER/model', 
-              '/data/private/mxy/code/cc-UNITER/optim',
-              '/data/private/mxy/code/cc-UNITER/utils']
+  output_dir: ${paths.code_dir}/results
+  code_dirs: ['${paths.code_dir}/data', 
+              '${paths.code_dir}/data_aug',
+              '${paths.code_dir}/model', 
+              '${paths.code_dir}/optim',
+              '${paths.code_dir}/utils']
   num_gpus: 1
   debug: false
-  verbose: false
+  verbose: false # set to true to enable std logging
 
 # disable hydra logging
 hydra:
@@ -26,9 +28,9 @@ hydra:
     subdir: .
 
 configs:
-  model_config: /data/private/cc/experiment/MMP/UNITER/config/uniter-base.json
-  checkpoint: /data/private/cc/experiment/MMP/pretrained_ckpts/pretrained/uniter-base.pt
-  output_dir: /data/private/mxy/exp/UNITER/finetune/ve/finetune
+  model_config: ${paths.code_dir}/config/uniter-base.json
+  checkpoint: /data/share/UNITER/pretrained_ckpts/pretrained/uniter-base.pt
+  output_dir: ${paths.output_dir}
   seed: 42
 
 

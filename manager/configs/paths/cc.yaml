@@ -1,0 +1,4 @@
+# @package paths
+
+code_dir: /data/private/cc/experiment/MMP/UNITER
+output_dir: /data/private/cc/experiment/MMP/UNITER/results/exp_results

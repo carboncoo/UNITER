@@ -109,3 +109,6 @@ venv.bak/
 # for hydra + mlflow
 hydra/
 results/
+
+# for msgpack files
+*.mp

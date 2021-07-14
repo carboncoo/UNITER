@@ -92,7 +92,7 @@ def main(opts):
 
     # train_examples = None
     LOGGER.info(f"Loading Train Dataset {opts.train_txt_dbs}, "
-                f"{opts.train_img_db}")
+                f"{opts.train_img_dbs}")
     # train_dataloader = create_dataloader(opts.train_img_db, opts.train_txt_db,
     #                                      opts.train_batch_size, True,
     #                                      VeDataset, ve_collate, opts)
