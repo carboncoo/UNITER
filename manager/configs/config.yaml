@@ -9,10 +9,10 @@ scripts:
 
 mlflow:
   exp_name: finetune
-  output_dir: ${paths.code_dir}/results
-  code_dirs: ['${paths.code_dir}/data', 
+  output_dir: ${paths.output_dirs.mlflow}
+  code_dirs: ['${paths.code_dir}/data',
               '${paths.code_dir}/data_aug',
-              '${paths.code_dir}/model', 
+              '${paths.code_dir}/model',
               '${paths.code_dir}/optim',
               '${paths.code_dir}/utils']
   num_gpus: 1
@@ -30,7 +30,7 @@ hydra:
 configs:
   model_config: ${paths.code_dir}/config/uniter-base.json
   checkpoint: /data/share/UNITER/pretrained_ckpts/pretrained/uniter-base.pt
-  output_dir: ${paths.output_dir}
+  output_dir: ${paths.output_dirs.model}
   seed: 42
 
 

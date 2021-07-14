@@ -1,4 +1,6 @@
 # @package paths
 
 code_dir: /data/private/cc/experiment/MMP/UNITER
-output_dir: /data/private/cc/experiment/MMP/UNITER/results/exp_results
+output_dirs: 
+  mlflow: /data/private/cc/experiment/MMP/UNITER/results
+  model: /data/private/cc/experiment/MMP/UNITER/results/exp_results
