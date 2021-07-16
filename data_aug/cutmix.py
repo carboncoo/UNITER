@@ -20,13 +20,12 @@ msgpack_numpy.patch()
 
 sys.path.append('../')
 from model.vqa import UniterForVisualQuestionAnswering
-from utils.const import IMG_DIM
 
+IMG_DIM = 2048
 NUM_LABELS = 1600
 seeds = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
 
 m = torch.nn.Softmax(dim=0)
-# cos = nn.CosineSimilarity(dim=1, eps=1e-6)
 tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
 
 def convert_to_binary(embedding_path):
@@ -92,7 +91,6 @@ def get_max_idx(txt_item, img_item, labels_emb, glove_dict=None, emb_weight=None
             dist = cos_dist(txt_embs, lbl_embs)
         # import ipdb; ipdb.set_trace()
         if max_method == 'Attn':
-            # import ipdb; ipdb.set_trace()
             return (dist==torch.max(dist)).nonzero()
         elif max_method == 'Attn_Softmax':
             score = m(dist)
@@ -198,7 +196,7 @@ def nlvr2():
 def ve(emb_method='UNITER'):
     # initialize
     img_dir_in = "/data/share/UNITER/ve/img_db/flickr30k"
-    txt_dir_in = "/data/share/UNITER/ve/txt_db/ve_train.db"
+    txt_dir_in = "/data/share/UNITER/ve/da/sample/seed2/txt_db/ve_train.db"
     img_db_name = "/feat_th0.2_max100_min10"
     # print('Loading Tokenizer')
     # tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
@@ -268,7 +266,7 @@ def ve(emb_method='UNITER'):
     random.seed(seed)
     
     # write to db
-    txt_dir_out = "/data/share/UNITER/ve/da/%s/seed%d/txt_db/ve_train.db"%(emb_method, seed)
+    txt_dir_out = "/data/share/UNITER/ve/da/sample/seed2/%s/txt_db/ve_train.db"%(emb_method)
     if not exists(txt_dir_out):
         os.makedirs(txt_dir_out)
     else:
