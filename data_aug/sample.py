@@ -18,9 +18,9 @@ from lz4.frame import compress, decompress
 from os.path import exists, abspath, dirname
 
 seed = 2
-sample_num = 200000
+sample_num = 50000
 txt_dir_in = "/data/share/UNITER/ve/txt_db/ve_train.db"
-txt_dir_out = "/data/share/UNITER/ve/da/sample/seed%d/txt_db/ve_train.db"%(seed)
+txt_dir_out = "/data/share/UNITER/ve/da/sample/%dk/seed%d/txt_db/ve_train.db"%(sample_num/1000, seed)
 
 def save_db(db_dir, db, meta, id2len, txt2img, img2txts):
     if not exists(db_dir):

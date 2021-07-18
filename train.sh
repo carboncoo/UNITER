@@ -17,7 +17,8 @@ VCR_EXP=$EXP/vcr/default
 
 
 # train ve
-VE_EXP=$EXP/ve/cutmix/sample/seed2/both
+THRESHOLD=0.9
+VE_EXP=$EXP/ve/cutmix/sample/seed2/50k_200k
 # horovodrun -np 2 python train_ve.py --config config/train-ve-fs-base-2gpu.json \
 #     --output_dir $VE_EXP &
 python train_ve.py --config config/train-ve-base-1gpu.json \

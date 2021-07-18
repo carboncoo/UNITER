@@ -1,6 +1,6 @@
 # @package paths
 
 code_dir: /data/private/mxy/code/cc-UNITER
-output_dir: 
+output_dirs: 
   mlflow: /data/private/mxy/exp/UNITER/finetune
   model: /data/private/mxy/exp/UNITER/finetune
