@@ -1,5 +1,6 @@
 import io
 import os
+import re
 import json
 from tqdm import tqdm
 from collections import defaultdict
@@ -10,6 +11,10 @@ import numpy as np
 import msgpack
 import msgpack_numpy
 msgpack_numpy.patch()
+
+# cons
+IMG_DIM = 2048
+NUM_LABELS = 1600
 
 def load_txt_db(db_dir):
     # db loading
@@ -70,3 +75,69 @@ def load_single_region(txn, key, compress=False):
     
 def load_single_txt(data):
     return msgpack.loads(decompress(data), raw=False)
+
+def glove_encode(glove_dict, sentence):
+    return np.array([glove_dict[w.lower()] if w.lower() in glove_dict else np.ones(len(glove_dict['the']))*1e-6 for w in glove_tokenize(sentence)])
+
+def glove_tokenize(sentence):
+    repl = ['.', ',']
+    for r in repl:
+        sentence = sentence.replace(r, '')
+    return re.split("'| ", sentence)
+
+def cos_dist(a, b, eps=1e-6):
+    a = torch.Tensor(a)
+    b = torch.Tensor(b)
+    a_norm = a / a.norm(dim=1)[:, None]
+    b_norm = b / b.norm(dim=1)[:, None]
+    return torch.mm(a_norm, b_norm.transpose(0,1))
+
+def load_glove_emb_binary(embedding_file_name_w_o_suffix):
+    print("Loading binary word embedding from {0}.vocab and {0}.npy".format(embedding_file_name_w_o_suffix))
+
+    with open(embedding_file_name_w_o_suffix + '.vocab', 'r', encoding='utf-8') as f_in:
+        index2word = [line.strip() for line in f_in]
+
+    wv = np.load(embedding_file_name_w_o_suffix + '.npy')
+    word_embedding_map = {}
+    for i, w in enumerate(index2word):
+        word_embedding_map[w] = wv[i]
+
+    return word_embedding_map
+
+def load_word_emb(emb_method='UNITER'):
+    print('Loading %s Model'%(emb_method))
+    if emb_method == 'UNITER':
+        model_config = "/data/private/cc/experiment/MMP/UNITER/config/uniter-base.json"
+        checkpoint = torch.load("/data/private/cc/experiment/MMP/pretrained_ckpts/pretrained/uniter-base.pt")
+        emb_weight = checkpoint['uniter.embeddings.word_embeddings.weight']
+    elif emb_method == 'GloVe':
+        GLOVE_PATH = '/data/share/GloVe'
+        glove_dir = '/data/share/GloVe/glove.42B.300d'
+        emb_weight = load_glove_emb_binary(glove_dir)
+        print('GloVe vocab size: %d'%(len(emb_weight)))
+    return emb_weight
+
+def load_label_emb(emb_weight, emb_method='UNITER'):
+    print('Label Embedding ' + emb_method)
+    if emb_method == 'UNITER':
+        labels_ids = json.load(open('object_labels_ids.json'))
+        labels_emb = torch.zeros(NUM_LABELS, emb_weight.shape[1])
+        for i in range(NUM_LABELS):
+            if len(labels_ids[i]) > 1:
+                labels_emb[i] = torch.mean(emb_weight[labels_ids[i]])
+            else:
+                labels_emb[i] = emb_weight[labels_ids[i][0]]
+        labels_emb = labels_emb.cpu().detach().numpy()
+    elif emb_method == 'GloVe':
+        with open('object_labels.txt') as fin:
+            obj_labels = [re.split(',| ', line.strip()) for line in fin]
+        labels_emb = torch.zeros(NUM_LABELS, len(emb_weight['the']))
+        for i in range(NUM_LABELS):
+            if len(obj_labels[i]) > 1:
+                label_emb = torch.Tensor([emb_weight[lbl] for lbl in obj_labels[i] if lbl in emb_weight])
+                labels_emb[i] = torch.mean(label_emb)
+            else:
+                labels_emb[i] = torch.Tensor(emb_weight[obj_labels[i][0]])
+        labels_emb = labels_emb.cpu().detach().numpy()
+    return labels_emb

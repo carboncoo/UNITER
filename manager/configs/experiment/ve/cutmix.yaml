@@ -1,0 +1,29 @@
+# @package _global_
+defaults:
+  - ve/ft
+
+scripts:
+  train_py: ${paths.code_dir}/train_ve.py
+
+configs:
+  train_img_dbs: 
+  - /data/share/UNITER/ve/img_db/flickr30k
+  - /data/share/UNITER/ve/img_db/flickr30k
+  train_txt_dbs: 
+  - /data/share/UNITER/ve/txt_db/ve_train.db
+  # - /data/share/UNITER/ve/da/pos/seed2/GloVe/txt_db/ve_train.db
+  # - /data/share/UNITER/ve/da/sample/50k/seed2/txt_db/ve_train.db
+  - /data/share/UNITER/ve/da/threshold/0.80/seed2/GloVe/500k/txt_db/ve_train.db
+  output_dir: /data/private/mxy/exp/UNITER/finetune/ve/cutmix
+  train_batch_size: 8192
+  val_batch_size: 8192
+  gradient_accumulation_steps: 4
+  learning_rate: 8.0e-5
+  num_train_steps: 6000
+  warmup_steps: 600
+  valid_steps: 500
+  dropout: 0.1
+
+mlflow:
+  exp_name: cutmix-ve
+  task: cutmix-ve

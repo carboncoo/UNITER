@@ -3,6 +3,7 @@ import re
 import sys
 import lmdb
 import json
+import nltk
 import torch
 import pickle
 import random
@@ -15,18 +16,10 @@ from sklearn.cluster import k_means
 from transformers import AutoTokenizer
 from lz4.frame import compress, decompress
 from os.path import exists, abspath, dirname
-
+from utils import load_single_txt, load_word_emb,load_label_emb, load_txt_db, glove_encode, glove_tokenize, cos_dist, IMG_DIM, NUM_LABELS
 msgpack_numpy.patch()
 
-sys.path.append('../')
-from model.vqa import UniterForVisualQuestionAnswering
-from utils.const import IMG_DIM
-
-NUM_LABELS = 1600
-seeds = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
-
 m = torch.nn.Softmax(dim=0)
-# cos = nn.CosineSimilarity(dim=1, eps=1e-6)
 tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
 
 def convert_to_binary(embedding_path):
@@ -44,45 +37,25 @@ def convert_to_binary(embedding_path):
 
     np.save(embedding_path + ".npy", np.array(wv))
 
-def load_word_emb_binary(embedding_file_name_w_o_suffix):
-    print("Loading binary word embedding from {0}.vocab and {0}.npy".format(embedding_file_name_w_o_suffix))
-
-    with open(embedding_file_name_w_o_suffix + '.vocab', 'r', encoding='utf-8') as f_in:
-        index2word = [line.strip() for line in f_in]
-
-    wv = np.load(embedding_file_name_w_o_suffix + '.npy')
-    word_embedding_map = {}
-    for i, w in enumerate(index2word):
-        word_embedding_map[w] = wv[i]
-
-    return word_embedding_map
-
-def glove_tokenize(sentence):
-    repl = ['.', ',']
-    for r in repl:
-        sentence = sentence.replace(r, '')
-    return re.split("'| ", sentence)
-
-def glove_encode(glove_dict, sentence):
-    return np.array([glove_dict[w.lower()] if w.lower() in glove_dict else np.ones(len(glove_dict['the']))*1e-6 for w in glove_tokenize(sentence)])
-
-def cos_dist(a, b, eps=1e-6):
-    a = torch.Tensor(a)
-    b = torch.Tensor(b)
-    a_norm = a / a.norm(dim=1)[:, None]
-    b_norm = b / b.norm(dim=1)[:, None]
-    return torch.mm(a_norm, b_norm.transpose(0,1))
-
 def get_img_item(txt_item, img_txn):
     img_fname = txt_item['img_fname']
     img_dump = img_txn.get(img_fname.encode('utf-8'))
     return msgpack.loads(img_dump, raw=False)
 
-def get_max_idx(txt_item, img_item, labels_emb, glove_dict=None, emb_weight=None, emb_method='UNITER', max_method='Attn'):
+def check_pos(txt_item, index, pos):
+    sentence = tokenizer.decode(txt_item['input_ids'])
+    # tokens = nltk.word_tokenize(sentence)
+    glove_tokens = glove_tokenize(sentence)
+    pos_tags = nltk.pos_tag(glove_tokens)
+    # import ipdb; ipdb.set_trace()
+    return pos in pos_tags[index[0]][1]
+
+
+def get_max_idx(txt_item, img_item, labels_emb, threshold=0.8, pos=None, emb_weight=None, emb_method='UNITER', max_method='Attn'):
     if emb_method == 'UNITER':
         txt_embs = emb_weight[txt_item['input_ids']].cpu().detach().numpy()
     elif emb_method == 'GloVe':
-        txt_embs = glove_encode(glove_dict, tokenizer.decode(txt_item['input_ids']))
+        txt_embs = glove_encode(emb_weight, tokenizer.decode(txt_item['input_ids']))
     lbls = img_item['soft_labels'][:,1:]
     lbl_embs = np.matmul(lbls, labels_emb)
     if 'Attn' in max_method:
@@ -90,44 +63,66 @@ def get_max_idx(txt_item, img_item, labels_emb, glove_dict=None, emb_weight=None
             dist = torch.Tensor(np.matmul(txt_embs, lbl_embs.T))
         elif emb_method == 'GloVe':
             dist = cos_dist(txt_embs, lbl_embs)
-        # import ipdb; ipdb.set_trace()
         if max_method == 'Attn':
-            # import ipdb; ipdb.set_trace()
-            return (dist==torch.max(dist)).nonzero()
+            max_dist = torch.max(dist)
+            if (max_dist > threshold).item():
+                max_idx = (dist==torch.max(dist)).nonzero()[0].tolist()
+                if pos != None:
+                    if not check_pos(txt_item, max_idx, pos):
+                        return None
+                return max_idx
+            else:
+                return None
         elif max_method == 'Attn_Softmax':
             score = m(dist)
-            return (score==torch.max(score)).nonzero()
+            return (score==torch.max(score)).nonzero()[0].tolist()
 
-    # import ipdb; ipdb.set_trace()
-
-def cutmix(txt1, txt2, img_txn, labels_emb, glove_dict=None, emb_weight=None, emb_method='UNITER', max_method='Attn'):
-    txt_item1 = msgpack.loads(decompress(txt1), raw=False)
-    txt_item2 = msgpack.loads(decompress(txt2), raw=False)
+def cutmix(txt1, txt2, max_idx1, max_idx2, img_txn, labels_emb, emb_weight=None, emb_method='UNITER', max_method='Attn'):
+    txt_item1 = load_single_txt(txt1)
+    txt_item2 = load_single_txt(txt2)
     img_item1 = get_img_item(txt_item1, img_txn)
     img_item2 = get_img_item(txt_item2, img_txn)
 
-    max_idx1 = get_max_idx(txt_item1, img_item1, labels_emb, glove_dict=glove_dict, emb_method=emb_method, max_method=max_method)[0].tolist()
-    max_idx2 = get_max_idx(txt_item2, img_item2, labels_emb, glove_dict=glove_dict, emb_method=emb_method, max_method=max_method)[0].tolist()
+    # max_idx1 = get_max_idx(txt_item1, img_item1, labels_emb, emb_weight=emb_weight, emb_method=emb_method, max_method=max_method)
+    # max_idx2 = get_max_idx(txt_item2, img_item2, labels_emb, emb_weight=emb_weight, emb_method=emb_method, max_method=max_method)
 
-    mix_txt_item = {'input_ids': txt_item1['input_ids'],
-                    'target': txt_item1['target'],
-                    'img_fname': txt_item1['img_fname'],
-                    'mix_img_flk_id': txt_item2['Flikr30kID'],
-                    'mix_input_ids': txt_item2['input_ids'],
-                    'mix_bb': img_item2['norm_bb'][max_idx2[1]],
-                    'mix_index': max_idx1[1],
-                    'mix_feature': img_item2['features'][max_idx2[1]],
-                    'mix_conf': img_item2['conf'][max_idx2[1]],
-                    'mix_soft_labels': img_item2['soft_labels'][max_idx2[1]]}
-    if emb_method == 'UNITER':
-        mix_txt_item['input_ids'][max_idx1[0]] = txt_item2['input_ids'][max_idx2[0]]
-    if emb_method == 'GloVe':
-        mix_s = glove_tokenize(tokenizer.decode(txt_item1['input_ids']))
-        s2 = glove_tokenize(tokenizer.decode(txt_item2['input_ids']))
-        mix_s[max_idx1[0]] = s2[max_idx2[0]]
-        mix_txt_item['input_ids'] = tokenizer.encode(' '.join(mix_s))[1:-1]
-    # import ipdb; ipdb.set_trace()
-    return mix_txt_item
+    if max_idx1 != None and max_idx2 != None:
+        mix_txt_item = {'input_ids': txt_item1['input_ids'],
+                        'target': txt_item1['target'],
+                        'img_fname': txt_item1['img_fname'],
+                        'mix_img_flk_id': txt_item2['Flikr30kID'],
+                        'mix_input_ids': txt_item2['input_ids'],
+                        'mix_bb': img_item2['norm_bb'][max_idx2[1]],
+                        'mix_index': max_idx1[1],
+                        'mix_feature': img_item2['features'][max_idx2[1]],
+                        'mix_conf': img_item2['conf'][max_idx2[1]],
+                        'mix_soft_labels': img_item2['soft_labels'][max_idx2[1]]}
+        if emb_method == 'UNITER':
+            mix_txt_item['input_ids'][max_idx1[0]] = txt_item2['input_ids'][max_idx2[0]]
+        if emb_method == 'GloVe':
+            mix_s = glove_tokenize(tokenizer.decode(txt_item1['input_ids']))
+            s2 = glove_tokenize(tokenizer.decode(txt_item2['input_ids']))
+            mix_s[max_idx1[0]] = s2[max_idx2[0]]
+            mix_txt_item['input_ids'] = tokenizer.encode(' '.join(mix_s))[1:-1]
+
+        return mix_txt_item
+    else: 
+        return None
+
+def filter_img_txt_match(txt_db, img_txn, labels_emb, threshold=0.8, pos=None, emb_weight=None, emb_method='UNITER', max_method='Attn'):
+    db_flitered = {}
+    cnt = 0
+    for k, v in txt_db.items():
+        txt_item = load_single_txt(v)
+        img_item = get_img_item(txt_item, img_txn)
+        max_idx = get_max_idx(txt_item, img_item, labels_emb, threshold=threshold, pos=pos, emb_weight=emb_weight, emb_method=emb_method, max_method=max_method)
+        if max_idx != None:
+            db_flitered[k] = (v, max_idx)
+            if cnt % 1000 == 0:
+                print('Filtered %d examples'%cnt)
+            cnt += 1
+    print('Filtered db length: %d'%(len(db_flitered)))
+    return db_flitered
 
 def nlvr2():
     # initialize
@@ -197,61 +192,24 @@ def nlvr2():
 
 def ve(emb_method='UNITER'):
     # initialize
-    img_dir_in = "/data/share/UNITER/ve/img_db/flickr30k"
-    txt_dir_in = "/data/share/UNITER/ve/txt_db/ve_train.db"
+    threshold=0.8
+    mix_num = 500000
     img_db_name = "/feat_th0.2_max100_min10"
+    img_dir_in = "/data/share/UNITER/ve/img_db/flickr30k"
+    txt_dir_in = "/data/share/UNITER/ve/da/sample/50k/seed2/txt_db/ve_train.db"
+    # txt_dir_in = "/data/share/UNITER/ve/txt_db/ve_train.db"
+    txt_dir_out = "/data/share/UNITER/ve/da/threshold/%.2f/seed2/%s/500k/txt_db/ve_train.db"%(threshold, emb_method)
+    # txt_dir_out = "/data/share/UNITER/ve/da/pos/seed2/%s/txt_db/ve_train.db"%(emb_method)
+    # txt_dir_out = "/data/share/UNITER/ve/da/sample/50k/seed2/%s/%dk/txt_db/ve_train.db"%(emb_method, mix_num/1000)
     # print('Loading Tokenizer')
     # tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
 
-    if emb_method == 'UNITER':
-        print('Loading UNITER Model')
-        model_config = "/data/private/cc/experiment/MMP/UNITER/config/uniter-base.json"
-        checkpoint = torch.load("/data/private/cc/experiment/MMP/pretrained_ckpts/pretrained/uniter-base.pt")
-        emb_weight = checkpoint['uniter.embeddings.word_embeddings.weight']
-    elif emb_method == 'GloVe':
-        print('Loading GloVe Model')
-        GLOVE_PATH = '/data/share/GloVe'
-        glove_dir = '/data/share/GloVe/glove.42B.300d'
-        glove_dict = load_word_emb_binary(glove_dir)
-        print('GloVe vocab size: %d'%(len(glove_dict)))
-
-    print('Label Embedding ' + emb_method)
-    # with open('object_labels.txt') as fin:
-    #     obj_labels = [line.strip() for line in fin]
-    # labels_ids = [tokenizer.encode(label)[1:-1] for label in obj_labels]
-    if emb_method == 'UNITER':
-        labels_ids = json.load(open('object_labels_ids.json'))
-        labels_emb = torch.zeros(NUM_LABELS, emb_weight.shape[1])
-        for i in range(NUM_LABELS):
-            if len(labels_ids[i]) > 1:
-                labels_emb[i] = torch.mean(emb_weight[labels_ids[i]])
-            else:
-                labels_emb[i] = emb_weight[labels_ids[i][0]]
-        labels_emb = labels_emb.cpu().detach().numpy()
-    elif emb_method == 'GloVe':
-        with open('object_labels.txt') as fin:
-            obj_labels = [re.split(',| ', line.strip()) for line in fin]
-        labels_emb = torch.zeros(NUM_LABELS, len(glove_dict['the']))
-        for i in range(NUM_LABELS):
-            if len(obj_labels[i]) > 1:
-                label_emb = torch.Tensor([glove_dict[lbl] for lbl in obj_labels[i] if lbl in glove_dict])
-                labels_emb[i] = torch.mean(label_emb)
-            else:
-                labels_emb[i] = torch.Tensor(glove_dict[obj_labels[i][0]])
-        labels_emb = labels_emb.cpu().detach().numpy()
+    # load embs
+    emb_weight = load_word_emb(emb_method)
+    labels_emb = load_label_emb(emb_weight, emb_method)
 
     # read from txt db
-    txt_env_in = lmdb.open(txt_dir_in)
-    txt_txn_in = txt_env_in.begin()
-    txt_db = {}
-    cnt = 0
-    for key, value in txt_txn_in.cursor():
-        txt_db[key] = value
-        cnt += 1
-        # if cnt == 10:
-        #     break
-    print('txt db length:', len(txt_db))
-    txt_env_in.close()
+    txt_db = load_txt_db(txt_dir_in)
 
     meta = json.load(open(txt_dir_in + '/meta.json'))
     id2len = json.load(open(txt_dir_in + '/id2len.json'))
@@ -268,7 +226,6 @@ def ve(emb_method='UNITER'):
     random.seed(seed)
     
     # write to db
-    txt_dir_out = "/data/share/UNITER/ve/da/%s/seed%d/txt_db/ve_train.db"%(emb_method, seed)
     if not exists(txt_dir_out):
         os.makedirs(txt_dir_out)
     else:
@@ -282,37 +239,39 @@ def ve(emb_method='UNITER'):
     txt_env_out = lmdb.open(txt_dir_out, map_size=int(1e11))
     txt_txn_out = txt_env_out.begin(write=True)
 
-    sample_cnt = 0
-    txt_keys = list(txt_db.keys())
-    random.shuffle(txt_keys)
-    for k, v in txt_db.items():
-        # import ipdb; ipdb.set_trace()
-        k_sample = txt_keys[sample_cnt]
-        while k == k_sample:
-            print('whoooooooops')
-            k_sample = random.choice(txt_keys)
-        
-        if emb_method == 'UNITER':
-            mix_txt_item = cutmix(v, txt_db[k_sample], img_txn_in, labels_emb, emb_weight=emb_weight, emb_method=emb_method, max_method='Attn_Softmax')
-        elif emb_method == 'GloVe':
-            mix_txt_item = cutmix(v, txt_db[k_sample], img_txn_in, labels_emb, glove_dict=glove_dict, emb_method=emb_method, max_method='Attn_Softmax')
-        mix_txt_key = str(sample_cnt) + '_' + k.decode('utf-8')
-        mix_img_key = mix_txt_item['img_fname']
-        txt_txn_out.put(mix_txt_key.encode('utf-8'), compress(msgpack.dumps(mix_txt_item, use_bin_type=True)))
-        
-        txt2img_out[mix_txt_key] = mix_img_key
-        if mix_img_key in img2txt_out:
-            img2txt_out[mix_img_key].append(mix_txt_key)
-        else:
-            img2txt_out[mix_img_key] = [mix_txt_key]
-        id2len_out[mix_txt_key] = id2len[k.decode('utf-8')]
-        # import ipdb; ipdb.set_trace()
+    # filter with threshold
+    filtered_txt_db = filter_img_txt_match(txt_db, img_txn_in, labels_emb, threshold=threshold, pos=None, emb_weight=emb_weight, emb_method=emb_method, max_method='Attn')
 
-        if sample_cnt % 1000 == 0:
-            print("Sampled ", sample_cnt)
-            txt_txn_out.commit()
-            txt_txn_out = txt_env_out.begin(write=True)
-        sample_cnt += 1
+    # sample & mix
+    sample_cnt = 0
+    sampled_keys = []
+    while sample_cnt < mix_num:
+        keys = random.sample(list(filtered_txt_db), 2)
+        while keys[0] == keys[1] or keys in sampled_keys:
+            print('whoooooooops')
+            keys[1] = random.choice(list(filtered_txt_db))
+        values = [filtered_txt_db[k][0] for k in keys]
+        max_idx = [filtered_txt_db[k][1] for k in keys]
+        
+        mix_txt_item = cutmix(values[0], values[1], max_idx[0], max_idx[1], img_txn_in, labels_emb, emb_weight=emb_weight, emb_method=emb_method, max_method='Attn')
+        if mix_txt_item != None:
+            mix_txt_key = str(sample_cnt) + '_' + keys[0].decode('utf-8')
+            mix_img_key = mix_txt_item['img_fname']
+            txt_txn_out.put(mix_txt_key.encode('utf-8'), compress(msgpack.dumps(mix_txt_item, use_bin_type=True)))
+            
+            txt2img_out[mix_txt_key] = mix_img_key
+            if mix_img_key in img2txt_out:
+                img2txt_out[mix_img_key].append(mix_txt_key)
+            else:
+                img2txt_out[mix_img_key] = [mix_txt_key]
+            id2len_out[mix_txt_key] = id2len[keys[0].decode('utf-8')]
+
+            if sample_cnt % 1000 == 0:
+                print("Sampled ", sample_cnt)
+                txt_txn_out.commit()
+                txt_txn_out = txt_env_out.begin(write=True)
+            sampled_keys.append(keys)
+            sample_cnt += 1
 
     print('Mixed %d pairs'%sample_cnt)
     img_env_in.close()

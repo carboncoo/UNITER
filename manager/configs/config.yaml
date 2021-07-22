@@ -1,7 +1,7 @@
 defaults:
   - optional data: default
   - optional training: default
-  - optional paths: cc
+  - optional paths: mxy
 
 scripts:
   train_sh: ${paths.code_dir}/manager/scripts/train.sh
