@@ -14,6 +14,8 @@ import matplotlib.pyplot as plt
 from transformers import AutoTokenizer
 from lz4.frame import compress, decompress
 from os.path import exists, abspath, dirname
+from analyze import draw_bounding_box
+from cutmix import check_pos
 from utils import load_word_emb, load_label_emb, load_txt_db, glove_encode, cos_dist, IMG_DIM, NUM_LABELS
 msgpack_numpy.patch()
 
@@ -44,6 +46,38 @@ def get_max_sim(txt_item, img_item, labels_emb, emb_weight=None, emb_method='UNI
         elif max_method == 'Attn_Softmax':
             score = m(dist)
             return torch.max(score)
+
+def get_max_idx(txt_item, img_item, labels_emb, threshold=0.8, pos=None, emb_weight=None, emb_method='UNITER', max_method='Attn'):
+    if emb_method == 'UNITER':
+        txt_embs = emb_weight[txt_item['input_ids']].cpu().detach().numpy()
+    elif emb_method == 'GloVe':
+        txt_embs = glove_encode(emb_weight, tokenizer.decode(txt_item['input_ids']))
+    lbls = img_item['soft_labels'][:,1:]
+    lbl_embs = np.matmul(lbls, labels_emb)
+    if 'Attn' in max_method:
+        if emb_method == 'UNITER':
+            dist = torch.Tensor(np.matmul(txt_embs, lbl_embs.T))
+        elif emb_method == 'GloVe':
+            dist = cos_dist(txt_embs, lbl_embs)
+        if max_method == 'Attn':
+            max_dist = torch.max(dist)
+            max_idx = (dist==torch.max(dist)).nonzero()[0].tolist()
+            if (max_dist > threshold).item():
+                if pos != None:
+                    if not check_pos(txt_item, max_idx, pos):
+                        im = draw_bounding_box(txt_item['Flikr30kID'], img_item['norm_bb'][max_idx[1]], (200, 100, 0, 255))
+                        im.save('pos_' + txt_item['Flikr30kID'], 'JPEG')
+                        import ipdb; ipdb.set_trace()
+                        return None
+                return max_idx
+            else:
+                # im = draw_bounding_box(txt_item['Flikr30kID'], img_item['norm_bb'][max_idx[1]])
+                # im.save('threshold_' + txt_item['Flikr30kID'], 'JPEG')
+                # import ipdb; ipdb.set_trace()
+                return None
+        elif max_method == 'Attn_Softmax':
+            score = m(dist)
+            return (score==torch.max(score)).nonzero()[0].tolist()
 
 def get_score_stat(txt_item, img_item, emb_weight, labels_emb):
     txt_embs = emb_weight[txt_item['input_ids']].cpu().detach().numpy()
@@ -80,18 +114,19 @@ def main(emb_method='UNITER'):
     for k, v in txt_db.items():
         txt_item = msgpack.loads(decompress(v), raw=False)
         img_item = get_img_item(txt_item, img_txn_in)
-        max_sim = get_max_sim(txt_item, img_item, labels_emb, emb_weight=emb_weight, emb_method=emb_method)
+        max_idx = get_max_idx(txt_item, img_item, labels_emb, threshold=0.8, pos='NN', emb_weight=emb_weight, emb_method=emb_method, max_method='Attn')
+        # max_sim = get_max_sim(txt_item, img_item, labels_emb, emb_weight=emb_weight, emb_method=emb_method)
         # import ipdb; ipdb.set_trace()
         # stat_var[txt_item['target']['labels'][0]].append(score_var.item())
         # stat_mean[txt_item['target']['labels'][0]].append(score_mean.item())
-        stat_max_sim.append(max_sim.item())
+        # stat_max_sim.append(max_sim.item())
         if cnt % 1000 == 0:
             print("Sampled ", cnt)
         cnt += 1
 
     img_env_in.close()
 
-    json.dump(stat_max_sim, open('statistic_max_sim.json', 'w'))
+    # json.dump(stat_max_sim, open('statistic_max_sim.json', 'w'))
     # json.dump(stat_var, open('statistic_score_var.json', 'w'))
     # json.dump(stat_mean, open('statistic_score_mean.json', 'w'))
 
@@ -109,9 +144,9 @@ def main(emb_method='UNITER'):
     #     plt.savefig('score_var_label' + str(k))
 
     # plot max sim
-    y = np.array(stat_max_sim)
-    plt.hist(y, bins=400, histtype='step')
-    plt.savefig('max_sim');
+    # y = np.array(stat_max_sim)
+    # plt.hist(y, bins=400, histtype='step')
+    # plt.savefig('max_sim')
     
 
 if __name__ == '__main__':

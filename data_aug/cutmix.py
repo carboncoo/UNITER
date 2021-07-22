@@ -193,14 +193,14 @@ def nlvr2():
 def ve(emb_method='UNITER'):
     # initialize
     threshold=0.8
-    mix_num = 50000
+    mix_num = 500000
     img_db_name = "/feat_th0.2_max100_min10"
     img_dir_in = "/data/share/UNITER/ve/img_db/flickr30k"
     txt_dir_in = "/data/share/UNITER/ve/da/sample/50k/seed2/txt_db/ve_train.db"
     # txt_dir_in = "/data/share/UNITER/ve/txt_db/ve_train.db"
-    # txt_dir_out = "/data/share/UNITER/ve/da/threshold/%.2f/seed2/%s/txt_db/ve_train.db"%(threshold, emb_method)
+    txt_dir_out = "/data/share/UNITER/ve/da/threshold/%.2f/seed2/%s/500k/txt_db/ve_train.db"%(threshold, emb_method)
     # txt_dir_out = "/data/share/UNITER/ve/da/pos/seed2/%s/txt_db/ve_train.db"%(emb_method)
-    txt_dir_out = "/data/share/UNITER/ve/da/sample/50k/seed2/%s/%dk/txt_db/ve_train.db"%(emb_method, mix_num/1000)
+    # txt_dir_out = "/data/share/UNITER/ve/da/sample/50k/seed2/%s/%dk/txt_db/ve_train.db"%(emb_method, mix_num/1000)
     # print('Loading Tokenizer')
     # tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
 
@@ -240,7 +240,7 @@ def ve(emb_method='UNITER'):
     txt_txn_out = txt_env_out.begin(write=True)
 
     # filter with threshold
-    filtered_txt_db = filter_img_txt_match(txt_db, img_txn_in, labels_emb, threshold=threshold, emb_weight=emb_weight, emb_method=emb_method, max_method='Attn')
+    filtered_txt_db = filter_img_txt_match(txt_db, img_txn_in, labels_emb, threshold=threshold, pos=None, emb_weight=emb_weight, emb_method=emb_method, max_method='Attn')
 
     # sample & mix
     sample_cnt = 0
