@@ -93,8 +93,8 @@ def main(cfg):
         # run cmd
         if mlflow_cfg.debug:
             p = subprocess.run(train_cmd, shell=True)
-            print(f'rm -rf {exp_cfg.output_dir}')
-            print(f'rm -rf {os.path.dirname(save_dir)}')
+            os.system(f'rm -rf {exp_cfg.output_dir}')
+            os.system(f'rm -rf {os.path.dirname(save_dir)}')
             # shutil.rmtree(exp_cfg.output_dir)
             # shutil.rmtree(os.path.dirname(save_dir))
         else:

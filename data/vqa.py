@@ -15,8 +15,11 @@ def _get_vqa_target(example, num_answers):
     target = torch.zeros(num_answers)
     labels = example['target']['labels']
     scores = example['target']['scores']
-    if labels and scores:
-        target.scatter_(0, torch.tensor(labels), torch.tensor(scores))
+    try:
+        if labels and scores:
+            target.scatter_(0, torch.tensor(labels), torch.tensor(scores))
+    except:
+        pass
     return target
 
 
@@ -41,6 +44,7 @@ class VqaDataset(DetectFeatTxtTokDataset):
             # import ipdb; ipdb.set_trace()
 
         target = _get_vqa_target(example, self.num_answers)
+        # target = example['target']['labels']
 
         attn_masks = torch.ones(len(input_ids) + num_bb, dtype=torch.long)
 

@@ -5,7 +5,8 @@
 # TXT_DB=/data/share/UNITER/ve/da/threshold/0.80/seed2/GloVe/300k/txt_db/ve_train.db # 0.305400171044 (334434)
 # TXT_DB=/data/share/UNITER/ve/da/threshold/0.80/seed2/GloVe/500k/txt_db/ve_train.db # 0.30426455522888063 (500000)
 # TXT_DB=/data/share/UNITER/ve/da/pos/seed2/GloVe/txt_db/ve_train.db # 0.31241854731405827 (359185)
-TXT_DB=/data/share/UNITER/ve/da/seed3/txt_db/ve_train.db # 0.056164860989146914 (529527)
+# TXT_DB=/data/share/UNITER/ve/da/seed3/txt_db/ve_train.db # 0.056164860989146914 (529527)
+TXT_DB=/data/share/UNITER/ve/da/simsub-seed42/txt_db/ve_train.db
 IMG_DB=/data/share/UNITER/ve/img_db/flickr30k 
 
 horovodrun -np 4 python scorer.py \

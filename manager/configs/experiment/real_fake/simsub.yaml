@@ -1,0 +1,4 @@
+# @package _global_
+defaults:
+  - real_fake/default
+  - override /data: real-fake-simsub

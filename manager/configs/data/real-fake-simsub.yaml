@@ -1,0 +1,12 @@
+# @package _global_
+
+defaults:
+  - real-fake
+
+configs:
+  train_txt_dbs: 
+  - /data/share/UNITER/ve/da/real_fake/simsub/train/real
+  - /data/share/UNITER/ve/da/real_fake/simsub/train/fake
+  val_txt_dbs: 
+  - /data/share/UNITER/ve/da/real_fake/simsub/dev/real
+  - /data/share/UNITER/ve/da/real_fake/simsub/dev/fake
