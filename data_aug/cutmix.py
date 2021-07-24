@@ -16,11 +16,20 @@ from sklearn.cluster import k_means
 from transformers import AutoTokenizer
 from lz4.frame import compress, decompress
 from os.path import exists, abspath, dirname
-from utils import load_single_txt, load_word_emb,load_label_emb, load_txt_db, glove_encode, glove_tokenize, cos_dist, IMG_DIM, NUM_LABELS
+from utils import (load_single_txt, load_word_emb, load_label_emb, 
+                   load_txt_db, load_as_batch, glove_encode, glove_tokenize, 
+                   cos_dist, IMG_DIM, NUM_LABELS)
 msgpack_numpy.patch()
+sys.path.append(os.path.join(os.path.abspath(__file__+'/../..'))) # UNITER/
+from GAN.discriminator import UniterModelforSequenceClassification
 
 m = torch.nn.Softmax(dim=0)
 tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
+
+ans2label = {
+    'false': 0,
+    'true': 1
+}
 
 def convert_to_binary(embedding_path):
     f = open(embedding_path + ".txt", 'r', encoding='utf-8')
@@ -124,89 +133,32 @@ def filter_img_txt_match(txt_db, img_txn, labels_emb, threshold=0.8, pos=None, e
     print('Filtered db length: %d'%(len(db_flitered)))
     return db_flitered
 
-def nlvr2():
-    # initialize
-    # print('Loading Tokenizer')
-    # tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
-
-    print('Loading UNITER Model')
-    model_config = "/data/private/cc/experiment/MMP/UNITER/config/uniter-base.json"
-    checkpoint = torch.load("/data/private/cc/experiment/MMP/pretrained_ckpts/pretrained/uniter-base.pt")
-    model = UniterForVisualQuestionAnswering.from_pretrained(
-            model_config, state_dict=checkpoint,
-            img_dim=IMG_DIM, num_answer= 3129,
-            da_type=None)
-    emb_weight = model.uniter.embeddings.word_embeddings.weight
-
-    print('Label Embedding')
-    # with open('object_labels.txt') as fin:
-    #     obj_labels = [line.strip() for line in fin]
-    # labels_ids = [tokenizer.encode(label)[1:-1] for label in obj_labels]
-    labels_ids = json.load(open('object_labels_ids.json'))
-    labels_emb = torch.zeros(NUM_LABELS, emb_weight.shape[1])
-    for i in range(NUM_LABELS):
-        labels_emb[i] = torch.mean(emb_weight[labels_ids[i]])
-    labels_emb = labels_emb.cpu().detach().numpy()
-    # with open('object_labels_ids.json', 'w') as fout:
-    #     json.dump(labels_ids, fout)
-
-    # read from txt db
-    txt_env_in = lmdb.open(txt_dir)
-    txt_txn_in = txt_env_in.begin()
-    txt_db = {}
-    cnt = 0
-    for key, value in txt_txn_in.cursor():
-        txt_db[key] = value
-        cnt += 1
-        if cnt == 10:
-            break
-    print('txt db length:', len(txt_db))
-    txt_env_in.close()
-
-    meta = json.load(open(txt_dir + '/meta.json'))
-    id2len = json.load(open(txt_dir + '/id2len.json'))
-    txt2img = json.load(open(txt_dir + '/txt2img.json'))
-
-    # img db
-    img_env_in = lmdb.open(img_dir, readonly=True)
-    img_txn_in = img_env_in.begin()
-
-    # debug & test
-    m = torch.nn.Softmax(dim=0)
-    for k, v in txt_db.items():
-        txt_item = msgpack.loads(decompress(v), raw=False)
-        txt_embs = emb_weight[txt_item['input_ids']].cpu().detach().numpy()
-
-        img_fname = txt_item['img_fname']
-        img_dump = img_txn_in.get(img_fname[0].encode('utf-8'))
-        img_item = msgpack.loads(img_dump, raw=False)
-        lbls = img_item['soft_labels'][:,:1600]
-        lbl_embs = np.matmul(lbls, labels_emb)
-        attn = torch.Tensor(np.matmul(txt_embs, lbl_embs.T))
-        score = m(attn)
-
-        import ipdb; ipdb.set_trace()
-
-
-    # write to db
-
 def ve(emb_method='UNITER'):
     # initialize
-    threshold=0.8
-    mix_num = 500000
+    threshold=0.1
+    gan_threshold = 0.7
+    gan_ckpt = 4000
+    mix_num = 100000
+    gan_model_dir = "/data/private/cc/experiment/MMP/UNITER/results/exp_results/real-fake-classify-99434aa392d9480484d8ae5934e353d7"
     img_db_name = "/feat_th0.2_max100_min10"
     img_dir_in = "/data/share/UNITER/ve/img_db/flickr30k"
-    txt_dir_in = "/data/share/UNITER/ve/da/sample/50k/seed2/txt_db/ve_train.db"
-    # txt_dir_in = "/data/share/UNITER/ve/txt_db/ve_train.db"
-    txt_dir_out = "/data/share/UNITER/ve/da/threshold/%.2f/seed2/%s/500k/txt_db/ve_train.db"%(threshold, emb_method)
+    # txt_dir_in = "/data/share/UNITER/ve/da/sample/50k/seed2/txt_db/ve_train.db"
+    txt_dir_in = "/data/share/UNITER/ve/txt_db/ve_train.db"
+    txt_dir_out = "/data/share/UNITER/ve/da/gan/%.2f/seed2/txt_db/ve_train.db"%(gan_threshold)
+    # txt_dir_out = "/data/share/UNITER/ve/da/threshold/%.2f/seed2/%s/500k/txt_db/ve_train.db"%(threshold, emb_method)
     # txt_dir_out = "/data/share/UNITER/ve/da/pos/seed2/%s/txt_db/ve_train.db"%(emb_method)
     # txt_dir_out = "/data/share/UNITER/ve/da/sample/50k/seed2/%s/%dk/txt_db/ve_train.db"%(emb_method, mix_num/1000)
     # print('Loading Tokenizer')
     # tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
 
-    # load embs
+    # load models
     emb_weight = load_word_emb(emb_method)
     labels_emb = load_label_emb(emb_weight, emb_method)
+
+    checkpoint = torch.load(f'{gan_model_dir}/ckpt/model_step_{gan_ckpt}.pt')
+    gan_model = UniterModelforSequenceClassification.from_pretrained(
+        f'{gan_model_dir}/log/model.json', checkpoint,
+        img_dim=IMG_DIM, num_labels=len(ans2label))
 
     # read from txt db
     txt_db = load_txt_db(txt_dir_in)
@@ -245,11 +197,23 @@ def ve(emb_method='UNITER'):
     # sample & mix
     sample_cnt = 0
     sampled_keys = []
+    txt_keys = list(filtered_txt_db)
+    shuf_keys = list(filtered_txt_db)
+    random.shuffle(shuf_keys)
+    i = 0
     while sample_cnt < mix_num:
-        keys = random.sample(list(filtered_txt_db), 2)
+        keys = [txt_keys[i], shuf_keys[i]]
+        i += 1
+        if i == len(filtered_txt_db):
+            random.shuffle(shuf_keys)
+            i = 0
+            
         while keys[0] == keys[1] or keys in sampled_keys:
             print('whoooooooops')
             keys[1] = random.choice(list(filtered_txt_db))
+
+        sampled_keys.append(keys)
+
         values = [filtered_txt_db[k][0] for k in keys]
         max_idx = [filtered_txt_db[k][1] for k in keys]
         
@@ -257,21 +221,30 @@ def ve(emb_method='UNITER'):
         if mix_txt_item != None:
             mix_txt_key = str(sample_cnt) + '_' + keys[0].decode('utf-8')
             mix_img_key = mix_txt_item['img_fname']
-            txt_txn_out.put(mix_txt_key.encode('utf-8'), compress(msgpack.dumps(mix_txt_item, use_bin_type=True)))
-            
-            txt2img_out[mix_txt_key] = mix_img_key
-            if mix_img_key in img2txt_out:
-                img2txt_out[mix_img_key].append(mix_txt_key)
-            else:
-                img2txt_out[mix_img_key] = [mix_txt_key]
-            id2len_out[mix_txt_key] = id2len[keys[0].decode('utf-8')]
 
-            if sample_cnt % 1000 == 0:
-                print("Sampled ", sample_cnt)
-                txt_txn_out.commit()
-                txt_txn_out = txt_env_out.begin(write=True)
-            sampled_keys.append(keys)
-            sample_cnt += 1
+            img_dump = img_txn_in.get(mix_img_key.encode('utf-8'))
+            img_item = msgpack.loads(img_dump, raw=False)
+
+            batch = load_as_batch(mix_txt_item, img_item)
+            score = gan_model(batch, compute_loss=False)
+            answer = score.softmax(dim=-1)[:, 1].item()
+            # import ipdb; ipdb.set_trace()
+
+            if answer > gan_threshold:
+                txt_txn_out.put(mix_txt_key.encode('utf-8'), compress(msgpack.dumps(mix_txt_item, use_bin_type=True)))
+                
+                txt2img_out[mix_txt_key] = mix_img_key
+                if mix_img_key in img2txt_out:
+                    img2txt_out[mix_img_key].append(mix_txt_key)
+                else:
+                    img2txt_out[mix_img_key] = [mix_txt_key]
+                id2len_out[mix_txt_key] = id2len[keys[0].decode('utf-8')]
+
+                if sample_cnt % 100 == 0:
+                    print("Sampled ", sample_cnt)
+                    txt_txn_out.commit()
+                    txt_txn_out = txt_env_out.begin(write=True)
+                sample_cnt += 1
 
     print('Mixed %d pairs'%sample_cnt)
     img_env_in.close()

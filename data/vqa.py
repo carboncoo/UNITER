@@ -15,8 +15,11 @@ def _get_vqa_target(example, num_answers):
     target = torch.zeros(num_answers)
     labels = example['target']['labels']
     scores = example['target']['scores']
-    if labels and scores:
-        target.scatter_(0, torch.tensor(labels), torch.tensor(scores))
+    try:
+        if labels and scores:
+            target.scatter_(0, torch.tensor(labels), torch.tensor(scores))
+    except:
+        pass
     return target
 
 
@@ -38,7 +41,6 @@ class VqaDataset(DetectFeatTxtTokDataset):
         if 'mix_index' in example:
             mix_index = example['mix_index']
             img_feat[mix_index].data = torch.from_numpy(example['mix_feature'])
-            # import ipdb; ipdb.set_trace()
 
         target = _get_vqa_target(example, self.num_answers)
 

@@ -7,6 +7,7 @@ from collections import defaultdict
 import lmdb
 from lz4.frame import compress, decompress
 import torch
+from torch.nn.utils.rnn import pad_sequence
 import numpy as np 
 import msgpack
 import msgpack_numpy
@@ -15,6 +16,12 @@ msgpack_numpy.patch()
 # cons
 IMG_DIM = 2048
 NUM_LABELS = 1600
+
+meta = {
+    'CLS': 101,
+    'SEP': 102,
+    'MASK': 103
+}
 
 def load_txt_db(db_dir):
     # db loading
@@ -67,6 +74,74 @@ def load_single_img(txn, key, compress=False):
     else:
         img_dump = msgpack.loads(dump, raw=False)
     return img_dump
+
+def get_vqa_target(txt_item, num_answers=3):
+    target = torch.zeros(num_answers)
+    labels = txt_item['target']['labels']
+    scores = txt_item['target']['scores']
+    try:
+        if labels and scores:
+            target.scatter_(0, torch.tensor(labels), torch.tensor(scores))
+    except:
+        pass
+    return target
+
+def combine_inputs(*inputs):
+    input_ids = [meta['CLS']]
+    for ids in inputs:
+        input_ids.extend(ids + [meta['SEP']])
+    return torch.tensor(input_ids).unsqueeze(0)
+
+def get_gather_index(txt_lens, num_bbs, batch_size, max_len, out_size):
+    assert len(txt_lens) == len(num_bbs) == batch_size
+    gather_index = torch.arange(0, out_size, dtype=torch.long).unsqueeze(0).repeat(batch_size, 1)
+
+    for i, (tl, nbb) in enumerate(zip(txt_lens, num_bbs)):
+        gather_index.data[i, tl:tl+nbb] = torch.arange(max_len, max_len+nbb,
+                                                       dtype=torch.long).data
+    return gather_index
+
+def load_as_batch(txt_item, img_item):
+    # img input
+    img_feat = torch.Tensor(img_item['features']).unsqueeze(0)
+    bb = torch.Tensor(img_item['norm_bb'])
+    img_pos_feat = torch.cat([bb, bb[:, 4:5]*bb[:, 5:]], dim=-1)
+
+    if 'mix_index' in txt_item:
+        mix_index = txt_item['mix_index']
+        img_feat.data[0, mix_index] = torch.from_numpy(txt_item['mix_feature'])
+
+    # txt input
+    input_ids = txt_item['input_ids']
+    input_ids = combine_inputs(input_ids)
+
+    targets = get_vqa_target(txt_item)
+    attn_masks = torch.ones(len(input_ids[0]) + img_feat.size(1), dtype=torch.long).unsqueeze(0)
+
+    txt_lens = [i.size(0) for i in input_ids]
+    # input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0)
+    position_ids = torch.arange(0, input_ids.size(1), dtype=torch.long
+                                ).unsqueeze(0)
+
+    # attn_masks = pad_sequence(attn_masks, batch_first=True, padding_value=0)
+    # targets = torch.stack(target, dim=0)
+
+    num_bbs = [f.size(0) for f in img_feat]
+    # img_feat = pad_tensors(img_feat, num_bbs)
+    # img_pos_feat = pad_tensors(img_pos_feat, num_bbs)
+
+    bs, max_tl = input_ids.size()
+    out_size = attn_masks.size(1)
+    gather_index = get_gather_index(txt_lens, num_bbs, bs, max_tl, out_size)
+
+    batch = {'input_ids': input_ids,
+             'position_ids': position_ids,
+             'img_feat': img_feat,
+             'img_pos_feat': img_pos_feat,
+             'attn_masks': attn_masks,
+             'gather_index': gather_index,
+             'targets': targets}
+    return batch
 
 def load_single_region(txn, key, compress=False):
     _, img_key, bb_idx = split_region_key(key)

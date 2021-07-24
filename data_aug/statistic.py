@@ -16,7 +16,9 @@ from lz4.frame import compress, decompress
 from os.path import exists, abspath, dirname
 from analyze import draw_bounding_box
 from cutmix import check_pos
-from utils import load_word_emb, load_label_emb, load_txt_db, glove_encode, cos_dist, IMG_DIM, NUM_LABELS
+from GAN.discriminator import UniterModelforSequenceClassification
+from utils import (load_word_emb, load_label_emb, load_txt_db, 
+                   glove_encode, cos_dist, IMG_DIM, NUM_LABELS)
 msgpack_numpy.patch()
 
 
@@ -95,10 +97,16 @@ def main(emb_method='UNITER'):
     # initialize
     img_dir_in = "/data/share/UNITER/ve/img_db/flickr30k"
     txt_dir_in = "/data/share/UNITER/ve/txt_db/ve_train.db"
+    discriminator_ckpt = '/data/private/cc/experiment/MMP/UNITER/results/exp_results/real-fake-classify-99434aa392d9480484d8ae5934e353d7'
     img_db_name = "/feat_th0.2_max100_min10"
     stat_mean = {0: [], 1:[], 2:[]}
     stat_var = {0: [], 1:[], 2:[]}
     stat_max_sim = []
+
+    model = UniterModelforSequenceClassification.from_pretrained(
+        discriminator_ckpt,
+        img_dim=IMG_DIM, num_labels=2)
+    scores = model(batch, compute_loss=False).softmax(-1)[:, 1].cpu().tolist()  # 长度为 batch_size
 
     # load embs
     emb_weight = load_word_emb(emb_method)
