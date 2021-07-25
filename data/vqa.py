@@ -43,6 +43,7 @@ class VqaDataset(DetectFeatTxtTokDataset):
             img_feat[mix_index].data = torch.from_numpy(example['mix_feature'])
 
         target = _get_vqa_target(example, self.num_answers)
+        # target = example['target']['labels']
 
         attn_masks = torch.ones(len(input_ids) + num_bb, dtype=torch.long)
 

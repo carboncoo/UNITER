@@ -13,7 +13,8 @@ configs:
   - /data/share/UNITER/ve/txt_db/ve_train.db
   # - /data/share/UNITER/ve/da/pos/seed2/GloVe/txt_db/ve_train.db
   # - /data/share/UNITER/ve/da/sample/50k/seed2/txt_db/ve_train.db
-  - /data/share/UNITER/ve/da/threshold/0.80/seed2/GloVe/500k/txt_db/ve_train.db
+  # - /data/share/UNITER/ve/da/threshold/0.80/seed2/GloVe/500k/txt_db/ve_train.db
+  - /data/share/UNITER/ve/da/gan/0.70/seed2/txt_db/ve_train.db # 100k
   output_dir: /data/private/mxy/exp/UNITER/finetune/ve/cutmix
   train_batch_size: 8192
   val_batch_size: 8192

@@ -1,0 +1,11 @@
+# @package _global_
+defaults:
+  - override /data: real-fake
+  - override /training: single_base
+
+scripts:
+  train_py: ${paths.code_dir}/GAN/train.py
+
+mlflow:
+  exp_name: real-fake
+  task: real-fake-classify

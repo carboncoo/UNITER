@@ -112,3 +112,6 @@ results/
 
 # for msgpack files
 *.mp
+
+# for sample pics
+*sample/

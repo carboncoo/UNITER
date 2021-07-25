@@ -56,6 +56,19 @@ def create_dataloader(img_path, txt_path, batch_size, is_train,
                             opts.num_bb, opts.compressed_db)
     txt_db = TxtTokLmdb(txt_path, opts.max_txt_len if is_train else -1)
     dset = dset_cls(txt_db, img_db)
+    sampler = TokenBucketSampler(dset.lens, bucket_size=BUCKET_SIZE,
+                                 batch_size=batch_size, droplast=is_train)
+    loader = DataLoader(dset, batch_sampler=sampler,
+                        num_workers=opts.n_workers, pin_memory=opts.pin_mem,
+                        collate_fn=collate_fn)
+    return PrefetchLoader(loader)
+
+def create_dataloader(img_path, txt_path, batch_size, is_train,
+                      dset_cls, collate_fn, opts):
+    img_db = DetectFeatLmdb(img_path, opts.conf_th, opts.max_bb, opts.min_bb,
+                            opts.num_bb, opts.compressed_db)
+    txt_db = TxtTokLmdb(txt_path, opts.max_txt_len if is_train else -1)
+    dset = dset_cls(txt_db, img_db)
     # import ipdb; ipdb.set_trace()
     # sampler = TokenBucketSampler(dset.lens, bucket_size=BUCKET_SIZE,
     #                              batch_size=batch_size, droplast=is_train)
